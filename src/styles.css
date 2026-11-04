@@ -1,0 +1,80 @@
+/* Norn tokens, the same as the app. The only colour on the page belongs to the bots. */
+:root{
+  --font-sans:"Inter Variable","Inter",ui-sans-serif,system-ui,sans-serif;
+  --bg:#ffffff; --ink:#171717; --body:#525252; --muted:#6b7076;
+  --line:#ebeced; --panel:#f5f5f5; --raised:#ffffff;
+  --strong:#171717; --on-strong:#ffffff;
+  --grid:rgba(23,23,23,.07);
+  --shadow-float:0 0 0 1px rgba(23,23,23,.06),0 10px 28px -14px rgba(23,23,23,.16);
+  --ease-out:cubic-bezier(0.23,1,0.32,1);
+  --focus:0 0 0 3px rgba(23,23,23,.18);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0e0f10; --ink:#f2f3f4; --body:#a9adb2; --muted:#8a8f95;
+    --line:#232527; --panel:#18191b; --raised:#1c1d20;
+    --strong:#f2f3f4; --on-strong:#0e0f10;
+    --grid:rgba(255,255,255,.06);
+    --shadow-float:0 0 0 1px rgba(255,255,255,.06),0 10px 28px -14px rgba(0,0,0,.6);
+    --focus:0 0 0 3px rgba(242,243,244,.22);
+    color-scheme:dark;
+  }
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:16px/24px var(--font-sans);font-feature-settings:"cv11","ss01";-webkit-font-smoothing:antialiased}
+a{color:inherit}
+:focus-visible{outline:none;box-shadow:var(--focus)}
+
+/* the canvas: the app's dot grid, the whole window */
+.stage{position:fixed;inset:0;overflow:hidden;background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);background-size:22px 22px;background-position:center}
+
+.top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:20px 28px}
+.mark{font-weight:600;font-size:17px;letter-spacing:-.01em}
+
+.btn{display:inline-flex;align-items:center;height:36px;padding:0 16px;border-radius:10px;font:500 14px var(--font-sans);text-decoration:none;cursor:pointer;transition:transform .15s var(--ease-out),opacity .15s}
+.btn.strong{background:var(--strong);color:var(--on-strong)}
+.btn:active{transform:scale(.97)}
+
+/* a folder, as on the canvas */
+.folder{position:absolute;left:max(28px,calc(50% - 300px));top:max(110px,26vh);display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);font-size:13px;user-select:none}
+
+/* the input with what sits on it: the bots waiting, and the answer of the one you look at */
+.stack{position:absolute;left:50%;bottom:max(76px,13vh);transform:translateX(-50%);width:min(600px,calc(100vw - 32px));display:flex;flex-direction:column;gap:12px}
+.queue{height:112px}
+.answer{background:var(--panel);border-radius:16px;padding:16px 18px 14px;color:var(--ink);animation:rise .32s var(--ease-out)}
+.answer p{margin:0 0 10px;max-width:60ch}
+.answer p + p{color:var(--body)}
+.answer .actions{display:flex;justify-content:flex-end;margin-top:4px}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.composer{display:flex;align-items:center;gap:10px;background:var(--raised);border-radius:18px;box-shadow:var(--shadow-float);padding:10px 10px 10px 18px}
+.composer input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:17px/26px var(--font-sans);padding:6px 0}
+.composer input::placeholder{color:var(--muted)}
+.send{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:10px;background:var(--strong);color:var(--on-strong);cursor:pointer;transition:opacity .15s,transform .15s var(--ease-out)}
+.send:disabled{opacity:.25;cursor:default}
+.send:not(:disabled):active{transform:scale(.94)}
+
+/* the bots, above everything else on the canvas */
+.bots{position:absolute;inset:0;pointer-events:none}
+.bot{position:absolute;display:flex;flex-direction:column;align-items:center;padding:0;border:0;background:none;color:inherit;font:inherit;pointer-events:auto;cursor:default;transform-origin:50% 100%;transition:opacity .2s}
+.bot[tabindex="0"]{cursor:pointer}
+.bot.hidden{opacity:0;pointer-events:none}
+.bot .name{margin-top:2px;font-size:12px;line-height:16px;color:var(--muted)}
+.bot.selected .name{color:var(--ink);font-weight:600}
+
+.foot{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;gap:16px;padding:18px 28px;font-size:13px;line-height:18px;color:var(--muted)}
+.foot a{text-decoration:none}
+.foot a:hover{color:var(--ink)}
+
+@media (max-width:640px){
+  .top{padding:16px 18px}
+  .folder{left:24px;top:84px}
+  .stack{bottom:84px}
+  .foot{flex-direction:column;gap:6px;padding:14px 18px}
+}
+@media (prefers-reduced-motion: reduce){
+  .answer{animation:none}
+}
