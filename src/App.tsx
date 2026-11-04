@@ -1,50 +1,20 @@
-// The page is the botlings canvas. A bot waits above the input. Give it a job (or wait a moment and the
-// page types one itself): it hops to its folder, works, comes back and answers, and its answer is what
-// botlings is, with the download in it. Every further job hatches another bot from the input, up to a
-// few, each coming back with one more thing botlings does.
+// The page: the real headline, then a small canvas where Pip offers to fix a line of this very site.
+// He only starts when you say so, his brother Rex checks the change, and Pip comes back asking for
+// permission with the diff, the way botlings does. Then a clip of the real app, the rest of the cast with
+// one sentence each, and the facts. Nothing is gated: the download is in the header from the start.
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Bot, type Look } from './Bot';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Avatar, Bot, MEETY, NAPPER, PIP, REX } from './Bot';
 import { DOWNLOAD_URL } from './config';
 import { reducedMotion } from './hop';
 
-type Where = 'queue' | 'work' | 'egg';
+type Step = 'ask' | 'work' | 'review' | 'permission' | 'done' | 'denied';
 
-interface Botling {
-  id: string;
-  name: string;
-  look: Look;
-  where: Where;
-  answer: Answer | null;
-}
-
-type Answer = 'pitch' | number;
-
-const FIRST_TASK = 'Tidy up the README';
-const WORK_MS = 2600;
-/** How long the page waits for you before it gives the first job itself. */
-const AUTOPLAY_AFTER_MS = 2800;
-const TYPE_MS = 55;
-const MAX_BOTS = 5;
-
-const PITCH = 'I’m a botling. I run Claude Code for you, one bot per job, right on your Mac. I work in your folders, come back when I need you, and take a nap while you wait on someone else.';
-
-/** What the bots after the first one come back with. */
-const FACTS = [
-  'Hold fn and talk to me. What you say becomes text on your Mac, nothing leaves it.',
-  'Want my work checked first? My older brother reviews it against your rules and your tests before it reaches you.',
-  'Meety keeps your meetings. It listens on your Mac and only the summary goes to Claude.',
-  'You bring your own Claude, a subscription or an API key. botlings never sees your login.',
-];
-
-const NAMES = ['Pip', 'Mo', 'Lu', 'Kai', 'Fenn'];
-const LOOKS: Look[] = [
-  { type: 'clover', color: '#ffd36b' },
-  { type: 'blob', color: '#7cc4ff' },
-  { type: 'flower', color: '#ff8fb1' },
-  { type: 'ghost', color: '#8fe388', hat: 'beanie' },
-  { type: 'cat', color: '#b69cff' },
-];
+const OLD_LINE = 'botlings is an innovative, AI-powered agent orchestration platform that empowers developers to seamlessly manage multiple Claude Code sessions.';
+const NEW_LINE = 'Claude Code sessions as little bots. They work in your folders and ask before they change anything.';
+const WORK_MS = 2200;
+const REVIEW_MS = 1500;
+const TYPE_MS = 18;
 
 function useTheme(): 'light' | 'dark' {
   const query = '(prefers-color-scheme: dark)';
@@ -58,190 +28,194 @@ function useTheme(): 'light' | 'dark' {
   return dark ? 'dark' : 'light';
 }
 
-/** Re-measures whenever the window or one of the watched elements changes size. */
-function useLayoutTick() {
-  const [tick, setTick] = useState(0);
-  // made on first use: the elements hand themselves in through their refs before any effect runs
+/** The inner width of an element, kept current. */
+function useWidth() {
+  const [width, setWidth] = useState(0);
   const observer = useRef<ResizeObserver | null>(null);
-  const watch = useCallback((el: HTMLElement | null) => {
+  const ref = useCallback((el: HTMLElement | null) => {
+    observer.current?.disconnect();
     if (!el) return;
-    observer.current ??= new ResizeObserver(() => setTick(t => t + 1));
-    observer.current.observe(el);
-  }, []);
-  useEffect(() => {
-    const on = () => setTick(t => t + 1);
-    window.addEventListener('resize', on);
-    return () => {
-      observer.current?.disconnect();
-      window.removeEventListener('resize', on);
+    // the content box: what the bots and bubbles are placed in
+    const measure = () => {
+      const cs = getComputedStyle(el);
+      setWidth(el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
     };
+    observer.current = new ResizeObserver(measure);
+    observer.current.observe(el);
+    measure();
   }, []);
-  return { tick, watch };
+  return { width, ref };
+}
+
+const isMac = /Macintosh|Mac OS X/.test(navigator.userAgent) && !('ontouchend' in document);
+
+/** On a Mac: the DMG. Elsewhere: send this page on to your Mac through the share sheet. */
+function DownloadButton({ small }: { small?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const cls = `btn strong ${small ? 'sm' : ''}`;
+  if (isMac) return <a className={cls} href={DOWNLOAD_URL}>Download for Mac</a>;
+  const share = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title: 'botlings', text: 'botlings, Claude Code sessions as little bots on your Mac', url });
+      else {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+      }
+    } catch {
+      // the share sheet was closed
+    }
+  };
+  return <button className={cls} onClick={() => void share()}>{copied ? 'Link copied' : 'Send to my Mac'}</button>;
 }
 
 export function App() {
   const theme = useTheme();
-  const [bots, setBots] = useState<Botling[]>([{ id: 'b0', name: NAMES[0], look: LOOKS[0], where: 'queue', answer: null }]);
-  const [shown, setShown] = useState<string | null>(null);
-  const [text, setText] = useState('');
-  const [touched, setTouched] = useState(false);
-  const facts = useRef(0);
+  const [step, setStep] = useState<Step>('ask');
+  const [line, setLine] = useState(OLD_LINE);
+  const [clip, setClip] = useState(true);
   const timers = useRef<number[]>([]);
-  const later = (fn: () => void, ms: number) => timers.current.push(window.setTimeout(fn, ms));
+  const later = (fn: () => void, ms: number) => timers.current.push(window.setTimeout(fn, reducedMotion() ? 0 : ms));
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const scene = useWidth();
 
-  const { tick, watch } = useLayoutTick();
-  const queueRef = useRef<HTMLDivElement | null>(null);
-  const folderRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [, force] = useState(0);
-  // measure once more after the first paint, when the elements have their size
-  useLayoutEffect(() => force(n => n + 1), [tick]);
-
-  const small = window.innerWidth < 640;
-  const size = small ? 58 : 72;
-
-  /** A job for a bot: the waiting first one, then a new one from the input, then whoever waits longest. */
-  const give = (task: string) => {
-    if (!task.trim()) return;
-    setText('');
-    setBots(prev => {
-      const idle = prev.filter(b => b.where === 'queue');
-      let id: string;
-      let next = prev;
-      const fresh = !prev.some(b => b.answer !== null) && idle.length ? idle[0] : null;
-      if (fresh) {
-        id = fresh.id;
-      } else if (prev.length < MAX_BOTS) {
-        const k = prev.length;
-        id = `b${k}`;
-        next = [...prev, { id, name: NAMES[k], look: LOOKS[k], where: 'egg', answer: null }];
-      } else if (idle.length) {
-        id = idle[0].id;
-      } else {
-        return prev;
-      }
-      const answer: Answer = prev.every(b => b.answer === null) ? 'pitch' : facts.current++ % FACTS.length;
-      // out of the input first (a new one), then to the folder on the next frame, so it hops
-      requestAnimationFrame(() => setBots(p => p.map(b => (b.id === id ? { ...b, where: 'work' } : b))));
-      later(() => {
-        setBots(p => p.map(b => (b.id === id ? { ...b, where: 'queue', answer } : b)));
-        setShown(id);
-      }, reducedMotion() ? 300 : WORK_MS);
-      return next;
-    });
+  const start = () => {
+    setStep('work');
+    later(() => setStep('review'), WORK_MS);
+    later(() => setStep('permission'), WORK_MS + REVIEW_MS);
   };
-
-  // nobody started yet: the page gives the first job itself, typed out like you would
-  useEffect(() => {
-    if (touched) return;
-    const start = window.setTimeout(() => {
-      if (reducedMotion()) return give(FIRST_TASK);
-      let i = 0;
-      const typing = window.setInterval(() => {
-        i++;
-        setText(FIRST_TASK.slice(0, i));
-        if (i >= FIRST_TASK.length) {
-          clearInterval(typing);
-          later(() => give(FIRST_TASK), 420);
-        }
-      }, TYPE_MS);
-      timers.current.push(typing);
-    }, AUTOPLAY_AFTER_MS);
-    return () => clearTimeout(start);
-  }, [touched]); // eslint-disable-line react-hooks/exhaustive-deps
-  const takeOver = () => {
-    if (touched) return;
-    setTouched(true);
-    timers.current.forEach(clearTimeout);
-    timers.current.forEach(clearInterval);
+  const allow = () => {
+    setStep('done');
+    if (reducedMotion()) return setLine(NEW_LINE);
+    // the old line goes, the new one writes itself in
+    let i = 0;
+    const t = window.setInterval(() => {
+      i++;
+      setLine(NEW_LINE.slice(0, i));
+      if (i >= NEW_LINE.length) clearInterval(t);
+    }, TYPE_MS);
+    timers.current.push(t);
+  };
+  const again = () => {
+    timers.current.forEach(t => { clearTimeout(t); clearInterval(t); });
     timers.current = [];
-    setText('');
+    setLine(OLD_LINE);
+    setStep('ask');
   };
 
-  // where everyone stands
-  const q = queueRef.current?.getBoundingClientRect();
-  const f = folderRef.current?.getBoundingClientRect();
-  const inp = inputRef.current?.getBoundingClientRect();
-  const waiting = bots.filter(b => b.where === 'queue');
-  const working = bots.filter(b => b.where === 'work');
-  const gap = size + 22;
-  const spot = (b: Botling): { x: number; y: number } => {
-    if (b.where === 'queue' && q) {
-      const k = waiting.indexOf(b);
-      return { x: q.left + q.width / 2 + (k - (waiting.length - 1) / 2) * gap, y: q.bottom - 22 };
-    }
-    if (b.where === 'work' && f) {
-      const k = working.indexOf(b);
-      return { x: f.right + 18 + size / 2 + k * (size * 0.8), y: f.top + f.height / 2 + size / 2 - 6 };
-    }
-    return inp ? { x: inp.left + inp.width / 2, y: inp.top + inp.height / 2 + size / 2 } : { x: -200, y: -200 };
-  };
-  const current = bots.find(b => b.id === shown && b.answer !== null && b.where === 'queue') ?? null;
+  // where the two bots stand, in the scene's own pixels
+  const W = scene.width || 960;
+  const narrow = W < 620;
+  const size = narrow ? 56 : 68;
+  const floor = narrow ? 650 : 400;
+  const cardLeft = narrow ? 0 : 140;
+  const cardW = narrow ? W : Math.min(440, W - 360);
+  const rex = { x: narrow ? 44 : 72, y: floor };
+  // far enough right that a long permission bubble never covers the file it is about
+  const pipHome = { x: narrow ? W - 52 : Math.max(cardLeft + cardW + 220, W - 190), y: floor };
+  const pipAt = step === 'work' ? { x: narrow ? W - 52 : cardLeft + cardW + 56, y: narrow ? 300 : 210 }
+    : step === 'review' ? { x: rex.x + size + 24, y: floor }
+    : pipHome;
+  const talking = step === 'ask' || step === 'permission' || step === 'done' || step === 'denied';
 
   return (
-    <main className="stage">
+    <div className="page">
       <header className="top">
-        <span className="mark">botlings</span>
-        <a className="btn strong" href={DOWNLOAD_URL}>Download</a>
+        <span className="mark"><Avatar look={PIP} size={24} theme={theme} /> botlings</span>
+        <DownloadButton />
       </header>
 
-      <div className="folder" ref={el => { folderRef.current = el; watch(el); }} aria-hidden>
-        <svg width="40" height="32" viewBox="0 0 40 32" fill="none">
-          <path d="M3 8a4 4 0 0 1 4-4h8.4c1 0 2 .4 2.8 1.2L20.4 7.4H33a4 4 0 0 1 4 4V26a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z" fill="currentColor" opacity=".14" />
-          <path d="M3 12h34" stroke="currentColor" strokeOpacity=".22" />
-        </svg>
-        <span>your-project</span>
-      </div>
+      <main>
+        <section className="hero">
+          <h1>Your Claude Code sessions, as little bots on your Mac.</h1>
+          <p className="facts">Free. For Macs with Apple chips and macOS 14 or later. Bring your own Claude Code login or Anthropic API key. Notarized by Apple.</p>
+        </section>
 
-      <div className="stack" ref={watch}>
-        <div className="queue" ref={el => { queueRef.current = el; watch(el); }} />
-        {current && (
-          <section className="answer" key={current.id} aria-live="polite">
-            {current.answer === 'pitch' ? (
-              <>
-                <p>{PITCH}</p>
-                <p>My older brother checks my work before you see it, and Meety keeps your meetings.</p>
-                <div className="actions">
-                  <a className="btn strong" href={DOWNLOAD_URL}>Download for Mac</a>
+        <section className="scene" ref={scene.ref} aria-label="A short demo">
+          <div className="folder" style={{ left: narrow ? 0 : 40, top: narrow ? 0 : 40 }} aria-hidden>
+            <svg width="36" height="29" viewBox="0 0 40 32" fill="none">
+              <path d="M3 8a4 4 0 0 1 4-4h8.4c1 0 2 .4 2.8 1.2L20.4 7.4H33a4 4 0 0 1 4 4V26a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z" fill="currentColor" opacity=".18" />
+              <path d="M3 12h34" stroke="currentColor" strokeOpacity=".28" />
+            </svg>
+            <span>botlings-site</span>
+          </div>
+
+          <figure className={`file ${step === 'work' ? 'busy' : ''}`} style={{ left: cardLeft, top: narrow ? 64 : 40, width: cardW }}>
+            <figcaption>index.html</figcaption>
+            <p aria-live="polite">{line}</p>
+          </figure>
+
+          <Bot name="Rex" look={REX} x={rex.x} y={rex.y} size={size} theme={theme} state={step === 'review' ? 'working' : 'default'} />
+          <Bot name="Pip" look={PIP} x={pipAt.x} y={pipAt.y} size={size} theme={theme} state={step === 'work' ? 'working' : 'default'} />
+
+          {step === 'review' && (
+            <Bubble x={rex.x} y={rex.y - size - 18} width={190} sceneWidth={W}>
+              <p>Shorter, still true.</p>
+            </Bubble>
+          )}
+
+          {talking && (
+            <Bubble x={pipHome.x} y={pipHome.y - size - 18} width={narrow ? Math.min(W, 340) : 360} sceneWidth={W} key={step}>
+              {step === 'ask' && (
+                <>
+                  <p>Hi, I’m Pip. That line in index.html is a mouthful. Want me to fix it?</p>
+                  <div className="actions"><button className="btn strong sm" onClick={start}>Go ahead</button></div>
+                </>
+              )}
+              {step === 'permission' && (
+                <div role="group" aria-label="Pip asks for permission">
+                  <p className="ask-title">Wants to edit index.html</p>
+                  <p className="diff"><del>{OLD_LINE}</del><ins>{NEW_LINE}</ins></p>
+                  <p className="note">Rex checked it.</p>
+                  <div className="actions">
+                    <button className="btn sm" onClick={() => setStep('denied')}>Deny</button>
+                    <button className="btn strong sm" onClick={allow}>Allow</button>
+                  </div>
                 </div>
-              </>
-            ) : (
-              <p>{FACTS[current.answer as number]}</p>
-            )}
-          </section>
-        )}
-        <form className="composer" onSubmit={e => { e.preventDefault(); takeOver(); give(text); }}>
-          <input
-            ref={el => { inputRef.current = el; watch(el); }}
-            value={text}
-            onChange={e => { takeOver(); setText(e.target.value); }}
-            onFocus={takeOver}
-            placeholder={small ? 'Give a botling a job' : 'What should a new botling work on?'}
-            aria-label="Give a botling a job"
-            maxLength={120}
-          />
-          <button className="send" type="submit" aria-label="Send" disabled={!text.trim()}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" /></svg>
-          </button>
-        </form>
-      </div>
+              )}
+              {step === 'done' && (
+                <>
+                  <p>Done. On your Mac I do this for real, in your folders, while you do something else.</p>
+                  <div className="actions"><button className="btn sm" onClick={again}>Again</button><DownloadButton small /></div>
+                </>
+              )}
+              {step === 'denied' && (
+                <>
+                  <p>Fair, I’ll leave it. You always decide.</p>
+                  <div className="actions"><button className="btn sm" onClick={again}>Again</button></div>
+                </>
+              )}
+            </Bubble>
+          )}
+          {step === 'work' && <p className="working" style={{ left: pipAt.x, top: pipAt.y + 22 }}>Reading index.html</p>}
+        </section>
 
-      <div className="bots">
-        {bots.map(b => {
-          const at = spot(b);
-          return (
-            <Bot key={b.id} name={b.name} look={b.look} x={at.x} y={at.y} size={b.where === 'work' ? size * 0.82 : size}
-              state={b.where === 'work' ? 'working' : 'default'} theme={theme} hidden={b.where === 'egg'}
-              selected={current?.id === b.id} onSelect={b.answer !== null && b.where === 'queue' ? () => setShown(b.id) : undefined} />
-          );
-        })}
-      </div>
+        {clip && (
+          <video className="clip" src={`${import.meta.env.BASE_URL}app.mp4`} autoPlay muted loop playsInline onError={() => setClip(false)}
+            aria-label="botlings at work: bots hop to their folders and come back when they need you" />
+        )}
+
+        <section className="cast" aria-label="The others">
+          <div><Avatar look={NAPPER} size={52} state="sleeping" theme={theme} /><p>Waiting on a colleague? Let a bot take a nap. It wakes when something new comes in.</p></div>
+          <div><Avatar look={REX} size={52} theme={theme} /><p>Rex, Pip’s older brother, checks the work against your rules and tests before it reaches you.</p></div>
+          <div><Avatar look={MEETY} size={52} theme={theme} /><p>Meety keeps your meetings. It listens on your Mac, and only the summary goes to Claude.</p></div>
+        </section>
+      </main>
 
       <footer className="foot">
-        <span>For Macs with Apple chips and macOS 14 or later. You bring your own Claude.</span>
+        <span>botlings is not affiliated with Anthropic. Claude and Claude Code are trademarks of Anthropic.</span>
         <a href={`${import.meta.env.BASE_URL}notices.txt`}>Notices</a>
       </footer>
-    </main>
+    </div>
+  );
+}
+
+/** A speech bubble above a bot, kept inside the scene, its tail pointing at the bot. */
+function Bubble({ x, y, width, sceneWidth, children }: { x: number; y: number; width: number; sceneWidth: number; children: React.ReactNode }) {
+  const left = Math.max(0, Math.min(sceneWidth - width, x - width / 2));
+  return (
+    <div className="bubble" style={{ left, top: y, width, ['--tail' as string]: `${x - left}px` }}>
+      {children}
+    </div>
   );
 }

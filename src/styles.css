@@ -23,58 +23,70 @@
 }
 
 *{box-sizing:border-box}
-html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--ink);font:16px/24px var(--font-sans);font-feature-settings:"cv11","ss01";-webkit-font-smoothing:antialiased}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/27px var(--font-sans);font-feature-settings:"cv11","ss01";-webkit-font-smoothing:antialiased}
 a{color:inherit}
+p{margin:0}
 :focus-visible{outline:none;box-shadow:var(--focus)}
 
-/* the canvas: the app's dot grid, the whole window */
-.stage{position:fixed;inset:0;overflow:hidden;background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);background-size:22px 22px;background-position:center}
+.page{max-width:1080px;margin:0 auto;padding:0 28px}
 
-.top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:20px 28px}
-.mark{font-weight:600;font-size:17px;letter-spacing:-.01em}
+.top{display:flex;align-items:center;justify-content:space-between;height:76px}
+.mark{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:17px;letter-spacing:-.01em}
 
-.btn{display:inline-flex;align-items:center;height:36px;padding:0 16px;border-radius:10px;font:500 14px var(--font-sans);text-decoration:none;cursor:pointer;transition:transform .15s var(--ease-out),opacity .15s}
+.btn{display:inline-flex;align-items:center;height:38px;padding:0 16px;border:0;border-radius:10px;background:var(--panel);color:var(--ink);font:500 14px var(--font-sans);text-decoration:none;cursor:pointer;transition:transform .15s var(--ease-out)}
+.btn.sm{height:32px;padding:0 12px;font-size:13px;border-radius:9px}
 .btn.strong{background:var(--strong);color:var(--on-strong)}
 .btn:active{transform:scale(.97)}
 
-/* a folder, as on the canvas */
-.folder{position:absolute;left:max(28px,calc(50% - 300px));top:max(110px,26vh);display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);font-size:13px;user-select:none}
+/* the one big line */
+.hero{padding:72px 0 48px}
+.hero h1{margin:0;max-width:15ch;font-size:clamp(40px,6.4vw,76px);line-height:1.02;font-weight:600;letter-spacing:-.035em}
+.facts{margin-top:24px;max-width:56ch;color:var(--body)}
 
-/* the input with what sits on it: the bots waiting, and the answer of the one you look at */
-.stack{position:absolute;left:50%;bottom:max(76px,13vh);transform:translateX(-50%);width:min(600px,calc(100vw - 32px));display:flex;flex-direction:column;gap:12px}
-.queue{height:112px}
-.answer{background:var(--panel);border-radius:16px;padding:16px 18px 14px;color:var(--ink);animation:rise .32s var(--ease-out)}
-.answer p{margin:0 0 10px;max-width:60ch}
-.answer p + p{color:var(--body)}
-.answer .actions{display:flex;justify-content:flex-end;margin-top:4px}
-@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* the canvas: the app's dot grid, with a folder, a file and two bots */
+.scene{position:relative;height:480px;margin:0 -28px;padding:0 28px;background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);background-size:22px 22px;border-radius:24px}
+.scene > *{position:absolute}
+.folder{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);font-size:13px;margin-left:28px}
+.file{margin:0 0 0 28px;background:var(--raised);border-radius:14px;box-shadow:var(--shadow-float);padding:12px 16px 14px;transition:box-shadow .3s}
+.file figcaption{font-size:12px;line-height:16px;color:var(--muted);margin-bottom:6px}
+.file p{font-size:15px;line-height:23px;min-height:46px}
+.file.busy{box-shadow:var(--shadow-float),0 0 0 2px var(--line)}
+.working{transform:translateX(-50%);margin:0 0 0 28px;font-size:12px;line-height:16px;color:var(--muted);white-space:nowrap}
 
-.composer{display:flex;align-items:center;gap:10px;background:var(--raised);border-radius:18px;box-shadow:var(--shadow-float);padding:10px 10px 10px 18px}
-.composer input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:17px/26px var(--font-sans);padding:6px 0}
-.composer input::placeholder{color:var(--muted)}
-.send{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:10px;background:var(--strong);color:var(--on-strong);cursor:pointer;transition:opacity .15s,transform .15s var(--ease-out)}
-.send:disabled{opacity:.25;cursor:default}
-.send:not(:disabled):active{transform:scale(.94)}
-
-/* the bots, above everything else on the canvas */
-.bots{position:absolute;inset:0;pointer-events:none}
-.bot{position:absolute;display:flex;flex-direction:column;align-items:center;padding:0;border:0;background:none;color:inherit;font:inherit;pointer-events:auto;cursor:default;transform-origin:50% 100%;transition:opacity .2s}
-.bot[tabindex="0"]{cursor:pointer}
-.bot.hidden{opacity:0;pointer-events:none}
+.bot{position:absolute;display:flex;flex-direction:column;align-items:center;margin-left:28px;padding:0;border:0;background:none;color:inherit;font:inherit;cursor:default;transform-origin:50% 100%}
 .bot .name{margin-top:2px;font-size:12px;line-height:16px;color:var(--muted)}
-.bot.selected .name{color:var(--ink);font-weight:600}
 
-.foot{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;gap:16px;padding:18px 28px;font-size:13px;line-height:18px;color:var(--muted)}
+/* speech: above its bot, the tail pointing at it */
+.bubble{position:absolute;margin-left:28px;transform:translateY(-100%);background:var(--raised);border-radius:16px;box-shadow:var(--shadow-float);padding:14px 16px;font-size:15px;line-height:23px;animation:say .28s var(--ease-out)}
+.bubble::after{content:"";position:absolute;bottom:-5px;left:calc(var(--tail) - 5px);width:10px;height:10px;background:var(--raised);transform:rotate(45deg);box-shadow:2px 2px 0 -1px rgba(23,23,23,.04)}
+.bubble .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.ask-title{font-size:13px;line-height:18px;color:var(--muted);margin-bottom:6px}
+.diff del{display:block;color:var(--muted);text-decoration-thickness:1px}
+.diff ins{display:block;margin-top:6px;text-decoration:none;color:var(--ink)}
+.note{margin-top:8px;font-size:13px;line-height:18px;color:var(--muted)}
+@keyframes say{from{opacity:0;transform:translateY(calc(-100% + 6px))}to{opacity:1;transform:translateY(-100%)}}
+
+/* the real app */
+.clip{display:block;width:100%;margin:72px 0 0;border-radius:16px;box-shadow:var(--shadow-float);background:var(--panel)}
+
+/* the rest of the cast, one sentence each */
+.cast{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;padding:88px 0 40px}
+.cast > div{display:flex;flex-direction:column;gap:14px}
+.cast p{color:var(--body);max-width:32ch}
+
+.foot{display:flex;justify-content:space-between;gap:16px;padding:40px 0 36px;font-size:13px;line-height:18px;color:var(--muted)}
 .foot a{text-decoration:none}
 .foot a:hover{color:var(--ink)}
 
-@media (max-width:640px){
-  .top{padding:16px 18px}
-  .folder{left:24px;top:84px}
-  .stack{bottom:84px}
-  .foot{flex-direction:column;gap:6px;padding:14px 18px}
+@media (max-width:720px){
+  .page{padding:0 20px}
+  .hero{padding:40px 0 32px}
+  .scene{height:700px;margin:0 -20px;padding:0 20px}
+  .folder,.file,.bot,.bubble,.working{margin-left:20px}
+  .cast{grid-template-columns:1fr;gap:28px;padding:56px 0 24px}
+  .foot{flex-direction:column}
 }
 @media (prefers-reduced-motion: reduce){
-  .answer{animation:none}
+  .bubble{animation:none}
 }
