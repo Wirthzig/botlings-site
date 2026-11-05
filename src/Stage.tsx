@@ -1,5 +1,6 @@
 // The stage all three tour variants share: Meety in the middle, a bubble under her, and the bots that
-// appear as she explains. Steps: 0 asleep, 1 hello, 2 bots hatch, 3 one comes to you, 4 the download.
+// appear as she explains. Steps: 0 asleep, 1 hello, 2 bots hatch, 3 one comes to you, then the features
+// (nap, reviewer, dictation, meetings), and last the download.
 
 import { useEffect, useState } from 'react';
 import { Bot, MEETY, type Look } from './Bot';
@@ -9,9 +10,15 @@ export const LINES = [
   '',
   'Hi! I’m Meety. I look after your Claude Code sessions.',
   'Every session becomes a little bot like me. Each one works in its own folder.',
-  'When one needs you, it comes to you. Otherwise it leaves you alone.',
+  'When one needs you, it comes over. Otherwise it leaves you alone.',
+  'Waiting on a colleague? Let a bot nap. It wakes when something new comes in.',
+  'My older brother Rex checks their work against your rules and tests before it reaches you.',
+  'Hold fn and talk, in any app. Your words become text right on your Mac.',
+  'And I keep your meetings. I listen on your Mac, and only the summary goes to Claude.',
   'That’s botlings. Want me on your Mac?',
 ];
+/** The last step, the one with the download. */
+export const LAST = LINES.length - 1;
 
 const LEFT: Look = { type: 'blob', color: '#7cc4ff' };
 const RIGHT: Look = { type: 'clover', color: '#ffd36b' };
@@ -44,7 +51,7 @@ export function Stage({ step, width, theme, meety = MEETY, children, onMeety }: 
     <div className={step === -1 ? 'stage-inner' : 'stage'} style={{ height: floor + 200 }}>
       <Bot key={`${meety.type}${meety.color}`} name="Meety" look={meety} x={cx} y={floor} size={big} theme={theme} state={step === 0 ? 'sleeping' : 'default'} showName={false}
         onSelect={onMeety} label={step === 0 ? 'Wake Meety' : 'Meety'} />
-      {step >= 2 && (
+      {(step === 2 || step === 3) && (
         <>
           <Bot name="A bot" look={LEFT} x={cx - side} y={floor} size={bot} theme={theme} state="working" showName={false} pop={1} />
           <Bot name="A bot" look={RIGHT} x={right.x} y={right.y} size={bot} theme={theme} state={asking ? 'default' : 'working'} showName={false} pop={120}

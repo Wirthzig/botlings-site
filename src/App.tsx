@@ -6,7 +6,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MEETY, type Look } from './Bot';
 import { DOWNLOAD_URL } from './config';
-import { LINES, Stage } from './Stage';
+import { LAST, Stage } from './Stage';
+import { Card } from './Cards';
 import { reducedMotion } from './hop';
 
 function useTheme(): 'light' | 'dark' {
@@ -34,7 +35,7 @@ function useWidth() {
   return { width, ref };
 }
 
-const variant = new URLSearchParams(location.search).get('v') ?? 'a';
+const variant = new URLSearchParams(location.search).get('v') ?? 'b';
 const touch = 'ontouchend' in document;
 const Download = () => <a className="btn" href={DOWNLOAD_URL}>Download for Mac</a>;
 
@@ -93,8 +94,8 @@ function Wake({ theme }: { theme: 'light' | 'dark' }) {
       <Stage step={step} width={width || 1000} theme={theme} onMeety={step === 0 ? () => setStep(1) : undefined}>
         <div className="actions">
           {step === 1 && <button className="btn" onClick={() => setStep(2)} autoFocus>Hi</button>}
-          {(step === 2 || step === 3) && <button className="btn" onClick={() => setStep(step + 1)} autoFocus>Next</button>}
-          {step === 4 && <Download />}
+          {step >= 2 && step < LAST && <button className="btn" onClick={() => setStep(step + 1)} autoFocus>Next</button>}
+          {step === LAST && <Download />}
         </div>
       </Stage>
       {step === 0 && <p className={`hint ${hint ? 'shown' : ''}`}>{touch ? 'Tap Meety' : 'Rub Meety awake ↔'}</p>}
@@ -102,7 +103,7 @@ function Wake({ theme }: { theme: 'light' | 'dark' }) {
   );
 }
 
-/** b) The same steps, driven by how far you scrolled; Meety stays in view. */
+/** b) The steps follow how far you scrolled; Meety stays in view, a small live card above her shows each feature. */
 function Scroll({ theme }: { theme: 'light' | 'dark' }) {
   const { width, ref } = useWidth();
   const box = useRef<HTMLElement | null>(null);
@@ -113,19 +114,20 @@ function Scroll({ theme }: { theme: 'light' | 'dark' }) {
       if (!el) return;
       const r = el.getBoundingClientRect();
       const progress = Math.min(1, Math.max(0, -r.top / (r.height - window.innerHeight)));
-      setStep(1 + Math.min(3, Math.floor(progress * 4)));
+      setStep(1 + Math.min(LAST - 1, Math.floor(progress * LAST)));
     };
     on();
     window.addEventListener('scroll', on, { passive: true });
     return () => window.removeEventListener('scroll', on);
   }, []);
   return (
-    <section className="scroll" ref={el => { box.current = el; ref(el); }}>
+    <section className="scroll" ref={el => { box.current = el; ref(el); }} style={{ height: `${LAST * 70 + 30}vh` }}>
       <div className="sticky">
+        <div className="card-slot"><Card step={step} theme={theme} /></div>
         <Stage step={step} width={width || 1000} theme={theme}>
-          {step === 4 && <div className="actions"><Download /></div>}
+          {step === LAST && <div className="actions"><Download /></div>}
         </Stage>
-        {step < 4 && <p className="hint shown">Scroll</p>}
+        {step < LAST && <p className="hint shown">Scroll</p>}
       </div>
     </section>
   );
