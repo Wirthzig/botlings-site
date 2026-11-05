@@ -1,20 +1,13 @@
-// The page, as reduced as it gets: one line, a quiet canvas with three bots, and the one thing botlings
-// is about. After a moment one bot comes forward and asks. You allow it, it goes back to work, and
-// nothing needs you. If you don't answer, it waits, the way bots in botlings do.
+// The page as a tour with Meety, in three variants to compare (?v=a, ?v=b, ?v=c):
+// a) wake Meety like in the app, then four short steps with a button each;
+// b) no waking, the same steps follow your scrolling;
+// c) you give Meety a name and a look while she explains.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Bot, PIP, type Look } from './Bot';
+import { MEETY, type Look } from './Bot';
 import { DOWNLOAD_URL } from './config';
+import { LINES, Stage } from './Stage';
 import { reducedMotion } from './hop';
-
-const OTHERS: Look[] = [
-  { type: 'blob', color: '#7cc4ff' },
-  { type: 'ghost', color: '#b69cff' },
-];
-/** How long the canvas stays still before Pip comes forward. */
-const ASK_AFTER_MS = 2000;
-
-type Step = 'still' | 'ask' | 'done';
 
 function useTheme(): 'light' | 'dark' {
   const query = '(prefers-color-scheme: dark)';
@@ -28,7 +21,6 @@ function useTheme(): 'light' | 'dark' {
   return dark ? 'dark' : 'light';
 }
 
-/** The inner width of an element, kept current. */
 function useWidth() {
   const [width, setWidth] = useState(0);
   const observer = useRef<ResizeObserver | null>(null);
@@ -42,52 +34,142 @@ function useWidth() {
   return { width, ref };
 }
 
+const variant = new URLSearchParams(location.search).get('v') ?? 'a';
+const touch = 'ontouchend' in document;
+const Download = () => <a className="btn" href={DOWNLOAD_URL}>Download for Mac</a>;
+
 export function App() {
   const theme = useTheme();
-  const [step, setStep] = useState<Step>(reducedMotion() ? 'ask' : 'still');
-  useEffect(() => {
-    if (step !== 'still') return;
-    const t = window.setTimeout(() => setStep('ask'), ASK_AFTER_MS);
-    return () => clearTimeout(t);
-  }, [step]);
-
-  const canvas = useWidth();
-  const W = canvas.width || 1000;
-  const small = W < 560;
-  const size = small ? 56 : 68;
-  // three bots resting across the upper canvas (two on a phone); Pip's place in front, where he asks
-  const homes = small
-    ? [{ x: W * 0.32, y: 150 }, { x: W * 0.68, y: 132 }]
-    : [{ x: W * 0.3, y: 160 }, { x: W * 0.52, y: 136 }, { x: W * 0.72, y: 168 }];
-  const front = { x: W / 2, y: small ? 330 : 360 };
-  const pip = step === 'ask' ? front : homes[0];
-
   return (
     <div className="page">
       <header className="top">
         <span className="mark">botlings</span>
-        <a className="btn" href={DOWNLOAD_URL}>Download for Mac</a>
+        <Download />
       </header>
+      <p className="line">Your Claude Code sessions, as little bots that come to you when they need you.</p>
       <main>
-        <h1>Your Claude Code sessions, as little bots that come to you when they need you.</h1>
-        <section className="canvas" ref={canvas.ref} aria-label="A bot asks before it changes a file">
-          <Bot name="Pip" look={PIP} x={pip.x} y={pip.y} size={size} theme={theme} state={step === 'done' ? 'working' : 'default'} showName={false} />
-          {OTHERS.slice(0, homes.length - 1).map((look, k) => (
-            <Bot key={k} name="A bot at work" look={look} x={homes[k + 1].x} y={homes[k + 1].y} size={size} theme={theme} state="working" showName={false} />
-          ))}
-          {step === 'ask' && (
-            <div className="bubble" style={{ left: front.x, top: front.y - size - 16 }} role="group" aria-label="Pip asks">
-              <p>May I edit README.md?</p>
-              <button className="btn" onClick={() => setStep('done')} autoFocus={false}>Allow</button>
-            </div>
-          )}
-          <p className={`calm ${step === 'done' ? 'shown' : ''}`} aria-live="polite">{step === 'done' ? 'Nothing needs you right now.' : ''}</p>
-        </section>
+        {variant === 'b' ? <Scroll theme={theme} /> : variant === 'c' ? <Dress theme={theme} /> : <Wake theme={theme} />}
       </main>
       <footer className="foot">
         <span>Free. For Macs with Apple chips and macOS 14 or later. Needs Claude Code. Not affiliated with Anthropic.</span>
         <a href={`${import.meta.env.BASE_URL}notices.txt`}>Notices</a>
       </footer>
     </div>
+  );
+}
+
+/** a) Meety sleeps until you rub her awake (or tap her), then four steps, one button each. */
+function Wake({ theme }: { theme: 'light' | 'dark' }) {
+  const { width, ref } = useWidth();
+  const [step, setStep] = useState(0);
+  const [hint, setHint] = useState(false);
+  const stroke = useRef<{ x: number; dir: number; run: number; n: number } | null>(null);
+  useEffect(() => {
+    const t = window.setTimeout(() => setHint(true), 1400);
+    return () => clearTimeout(t);
+  }, []);
+  // back and forth over her: six strokes wake her, each one makes her stir
+  const rub = (e: React.PointerEvent) => {
+    if (step !== 0 || e.pointerType === 'touch') return;
+    const s = (stroke.current ??= { x: e.clientX, dir: 0, run: 0, n: 0 });
+    const dx = e.clientX - s.x;
+    if (!dx) return;
+    const dir = Math.sign(dx);
+    if (dir === s.dir || !s.dir) s.run += Math.abs(dx);
+    else {
+      if (s.run >= 18) {
+        s.n++;
+        const el = document.querySelector<HTMLElement>('.stage .bot');
+        if (el && !reducedMotion()) el.animate([{ transform: 'none' }, { transform: 'rotate(-6deg) scale(1.03,.97)', offset: 0.3 }, { transform: 'rotate(5deg)', offset: 0.7 }, { transform: 'none' }], { duration: 350 });
+        if (s.n >= 6) window.setTimeout(() => setStep(1), 350);
+      }
+      s.run = Math.abs(dx);
+    }
+    s.dir = dir;
+    s.x = e.clientX;
+  };
+  return (
+    <section className="tour" ref={ref} onPointerMove={rub}>
+      <Stage step={step} width={width || 1000} theme={theme} onMeety={step === 0 ? () => setStep(1) : undefined}>
+        <div className="actions">
+          {step === 1 && <button className="btn" onClick={() => setStep(2)} autoFocus>Hi</button>}
+          {(step === 2 || step === 3) && <button className="btn" onClick={() => setStep(step + 1)} autoFocus>Next</button>}
+          {step === 4 && <Download />}
+        </div>
+      </Stage>
+      {step === 0 && <p className={`hint ${hint ? 'shown' : ''}`}>{touch ? 'Tap Meety' : 'Rub Meety awake ↔'}</p>}
+    </section>
+  );
+}
+
+/** b) The same steps, driven by how far you scrolled; Meety stays in view. */
+function Scroll({ theme }: { theme: 'light' | 'dark' }) {
+  const { width, ref } = useWidth();
+  const box = useRef<HTMLElement | null>(null);
+  const [step, setStep] = useState(1);
+  useEffect(() => {
+    const on = () => {
+      const el = box.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const progress = Math.min(1, Math.max(0, -r.top / (r.height - window.innerHeight)));
+      setStep(1 + Math.min(3, Math.floor(progress * 4)));
+    };
+    on();
+    window.addEventListener('scroll', on, { passive: true });
+    return () => window.removeEventListener('scroll', on);
+  }, []);
+  return (
+    <section className="scroll" ref={el => { box.current = el; ref(el); }}>
+      <div className="sticky">
+        <Stage step={step} width={width || 1000} theme={theme}>
+          {step === 4 && <div className="actions"><Download /></div>}
+        </Stage>
+        {step < 4 && <p className="hint shown">Scroll</p>}
+      </div>
+    </section>
+  );
+}
+
+const BODIES: Look['type'][] = ['cloud', 'clover', 'blob', 'ghost', 'cat', 'droid'];
+const COLOURS = ['#eef0f2', '#ffd36b', '#7cc4ff', '#ff8fb1', '#b69cff', '#8fe388'];
+
+/** c) You give Meety a name and a look; she explains botlings on the way. */
+function Dress({ theme }: { theme: 'light' | 'dark' }) {
+  const { width, ref } = useWidth();
+  const [stage, setStage] = useState<'name' | 'look' | 'end'>('name');
+  const [name, setName] = useState('Meety');
+  const [look, setLook] = useState<Look>(MEETY);
+  const shown = name.trim() || 'Meety';
+  const text = stage === 'name' ? 'Hi! I look after your Claude Code sessions. What would you like to call me?'
+    : stage === 'look' ? `${shown}, I like it. And how do I look? In botlings every session gets a bot like me.`
+    : `Every one of them comes to you when it needs you. Want ${shown} on your Mac?`;
+  return (
+    <section className="tour" ref={ref}>
+      <div className="stage" style={{ height: 420 }}>
+        <Stage step={-1} width={width || 1000} theme={theme} meety={look} />
+        <div className="say" style={{ top: (width < 560 ? 200 : 220) + 18 }} key={stage}>
+          <p>{text}</p>
+          {stage === 'name' && (
+            <form className="name" onSubmit={e => { e.preventDefault(); setStage('look'); }}>
+              <input value={name} onChange={e => setName(e.target.value.slice(0, 20))} aria-label="Her name" />
+              <button className="btn" type="submit">That’s me</button>
+            </form>
+          )}
+          {stage === 'look' && (
+            <>
+              <div className="chips" aria-label="Body">
+                {BODIES.map(b => <button key={b} className={look.type === b ? 'on' : ''} onClick={() => setLook(l => ({ ...l, type: b }))}>{b}</button>)}
+              </div>
+              <div className="swatches" aria-label="Colour">
+                {COLOURS.map(c => <button key={c} className={look.color === c ? 'on' : ''} style={{ background: c }} onClick={() => setLook(l => ({ ...l, color: c }))} aria-label={c} />)}
+              </div>
+              <div className="actions"><button className="btn" onClick={() => setStage('end')}>Looks good</button></div>
+            </>
+          )}
+          {stage === 'end' && <div className="actions"><Download /></div>}
+        </div>
+      </div>
+    </section>
   );
 }
