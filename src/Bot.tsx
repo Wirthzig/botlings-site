@@ -31,7 +31,7 @@ export function Avatar({ look, size, state = 'default', theme, interactive = fal
   );
 }
 
-export function Bot({ name, look, x, y, size, state, theme, hidden, selected, onSelect, showName = true }: {
+export function Bot({ name, look, x, y, size, state, theme, hidden, selected, onSelect, showName = true, badge, label, pop = 0 }: {
   name: string;
   look: Look;
   /** Where its feet stand, in page pixels. */
@@ -44,6 +44,12 @@ export function Bot({ name, look, x, y, size, state, theme, hidden, selected, on
   selected?: boolean;
   onSelect?: () => void;
   showName?: boolean;
+  /** What it needs from you, as in the app: ! asks permission, ? has a question, ✓ is done. */
+  badge?: '!' | '?' | '✓';
+  /** What a screen reader hears, when more than the name. */
+  label?: string;
+  /** Pops out of the spot it appears on, after this many ms (0: no pop). */
+  pop?: number;
 }) {
   const el = useRef<HTMLButtonElement>(null);
   const last = useRef<{ x: number; y: number } | null>(null);
@@ -53,16 +59,24 @@ export function Bot({ name, look, x, y, size, state, theme, hidden, selected, on
     if (!was || !el.current || reducedMotion()) return;
     hop(el.current, was.x - x, was.y - y);
   }, [x, y]);
+  useLayoutEffect(() => {
+    if (!pop || !el.current || reducedMotion()) return;
+    el.current.animate(
+      [{ transform: 'scale(0)', opacity: 0 }, { transform: 'scale(1.12, .9)', opacity: 1, offset: 0.6 }, { transform: 'scale(1)', opacity: 1 }],
+      { duration: 420, delay: pop, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'backwards' },
+    );
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <button
       ref={el}
       className={`bot ${hidden ? 'hidden' : ''} ${selected ? 'selected' : ''}`}
       style={{ left: x - size / 2, top: y - size, width: size }}
       onClick={onSelect}
-      aria-label={name}
+      aria-label={label ?? name}
       tabIndex={onSelect ? 0 : -1}
     >
       <Avatar look={look} size={size} state={state} theme={theme} interactive={state === 'default'} />
+      {badge && <span className="badge" aria-hidden>{badge}</span>}
       {showName && <span className="name">{name}</span>}
     </button>
   );
