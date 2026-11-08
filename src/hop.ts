@@ -4,7 +4,8 @@
 
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-export function hop(el: HTMLElement, dx: number, dy: number, delay = 0) {
+/** speed above 1 hops faster (Meety on the website runs after your clicks). */
+export function hop(el: HTMLElement, dx: number, dy: number, delay = 0, speed = 1) {
   const dist = Math.hypot(dx, dy);
   if (dist < 1) return;
   const hops = Math.max(1, Math.min(4, Math.round(dist / 260)));
@@ -22,7 +23,7 @@ export function hop(el: HTMLElement, dx: number, dy: number, delay = 0) {
   }
   frames[frames.length - 1] = { transform: 'translate(0, 0) scale(1, 1)', offset: 1 };
   el.getAnimations().forEach(a => a.cancel());
-  el.animate(frames, { duration: 480 + hops * 240, delay, easing: 'linear', fill: 'backwards' });
+  el.animate(frames, { duration: (480 + hops * 240) / speed, delay, easing: 'linear', fill: 'backwards' });
 }
 
 export const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
