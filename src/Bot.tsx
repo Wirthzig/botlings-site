@@ -31,7 +31,7 @@ export function Avatar({ look, size, state = 'default', theme, interactive = fal
   );
 }
 
-export function Bot({ name, look, x, y, size, state, theme, hidden, selected, onSelect, showName = true, badge, label, pop = 0, speed = 1 }: {
+export function Bot({ name, look, x, y, size, state, theme, hidden, selected, onSelect, showName = true, badge, label, pop = 0, speed = 1, className = '', style, children }: {
   name: string;
   look: Look;
   /** Where its feet stand, in page pixels. */
@@ -52,6 +52,10 @@ export function Bot({ name, look, x, y, size, state, theme, hidden, selected, on
   pop?: number;
   /** How fast it hops when its place changes. */
   speed?: number;
+  className?: string;
+  style?: React.CSSProperties;
+  /** Shown under it (what it is doing). */
+  children?: React.ReactNode;
 }) {
   const el = useRef<HTMLButtonElement>(null);
   const last = useRef<{ x: number; y: number } | null>(null);
@@ -71,8 +75,8 @@ export function Bot({ name, look, x, y, size, state, theme, hidden, selected, on
   return (
     <button
       ref={el}
-      className={`bot ${hidden ? 'hidden' : ''} ${selected ? 'selected' : ''}`}
-      style={{ left: x - size / 2, top: y - size, width: size }}
+      className={`bot ${hidden ? 'hidden' : ''} ${selected ? 'selected' : ''} ${className}`}
+      style={{ ...style, left: x - size / 2, top: y - size, width: size }}
       onClick={onSelect}
       aria-label={label ?? name}
       tabIndex={onSelect ? 0 : -1}
@@ -80,6 +84,7 @@ export function Bot({ name, look, x, y, size, state, theme, hidden, selected, on
       <Avatar look={look} size={size} state={state} theme={theme} interactive={state === 'default'} />
       {badge && <span className="badge" aria-hidden>{badge}</span>}
       {showName && <span className="name">{name}</span>}
+      {children}
     </button>
   );
 }

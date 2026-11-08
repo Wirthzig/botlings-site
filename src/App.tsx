@@ -1,97 +1,93 @@
-// The page: a welcome screen, and below it one botlings canvas as the last thing on the page. Bots are busy on it the way they are in the app:
-// some work in their folders (one with subagents), three wait above the input, one naps, Rex is checking
-// someone's work, the dictation pill sits at the bottom. Everything has the question-mark cursor; click
-// something and Meety hops over and tells you what it is.
+// The page: a welcome screen, and below it one botlings canvas as the last thing on the page.
 //
-// The canvas has two layouts (wide and tall). Places are given in layout units and spread over the whole
-// screen, while the things themselves keep their small size: the full width, nothing zoomed in.
+// The canvas lives the way the app does. Bots work in their folders (one with subagents), some wait above
+// the input with what they need, one naps, Rex checks someone's work, the dictation pill sits at the
+// bottom. Every few seconds something happens: a bot finishes and comes over, a new one hatches from the
+// input, Rex lets one through and takes the next. Everything has the question-mark cursor; click it and
+// Meety runs over and explains it, for the waiting ones with the real card from the app.
+//
+// Places are given in layout units (a wide and a tall layout) and spread over the whole screen; the things
+// themselves keep their small size.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Avatar, Bot, MEETY, NAPPER, PIP, REX, type Look } from './Bot';
 import { DOWNLOAD_URL } from './config';
+import { reducedMotion } from './hop';
+import { Sheet, type SheetId } from './Sheets';
 
-type Id = 'shop' | 'api' | 'site' | 'nap' | 'rex' | 'ask' | 'question' | 'done' | 'input' | 'pill' | 'meety';
+type Status = 'working' | 'subagents' | 'ask' | 'question' | 'done' | 'nap' | 'review' | 'hatch' | 'gone';
+type Folder = 'shop' | 'api' | 'site' | 'docs';
 
-const SAY: Record<Id | 'hello', string> = {
-  hello: 'Here they are at work. Click any bot or thing and I’ll tell you what it is.',
-  shop: 'Every Claude Code session is a bot like this one. It works in its own folder, here editing a file, while you do something else.',
-  api: 'This one split a big job. The little copies are its subagents, working in parallel.',
-  site: 'Running the tests. When it’s done it comes over to you, you don’t have to keep checking.',
-  nap: 'Napping. It’s waiting on a colleague and wakes up by itself when something new comes in.',
-  rex: 'My older brother Rex. He checks a bot’s work against your rules and tests before it reaches you.',
-  ask: 'This one wants to run a command. It waits until you allow it, nothing happens behind your back.',
-  question: 'This one has a question for you. Answer it and it gets back to work.',
-  done: 'Done. Click it in botlings and you read its answer, with every file it changed.',
-  input: 'Type a job here and a new bot hatches. Or hold fn and just say it.',
-  pill: 'The pill works in every app. Hold fn and talk, and your words appear as text, right on your Mac.',
-  meety: 'That’s me. I keep your meetings. I listen on your Mac, and only the summary goes to Claude.',
-};
+interface Botling {
+  id: string;
+  name: string;
+  look: Look;
+  status: Status;
+  folder?: Folder;
+  activity?: string;
+}
 
-const LABEL: Record<Id, string> = {
-  shop: 'A bot working in its folder', api: 'A bot with subagents', site: 'A bot running tests', nap: 'A napping bot',
-  rex: 'Rex, the reviewer', ask: 'A bot asking for permission', question: 'A bot with a question', done: 'A bot that is done',
-  input: 'The input', pill: 'The dictation pill', meety: 'Meety',
-};
+const INITIAL: Botling[] = [
+  { id: 'shop', name: 'Ada', look: { type: 'flower', color: '#ff8fb1' }, status: 'working', folder: 'shop', activity: 'Editing cart.ts' },
+  { id: 'api', name: 'Oli', look: { type: 'droid', color: '#8fe388' }, status: 'subagents', folder: 'api', activity: 'Searching the code' },
+  { id: 'site', name: 'Fenn', look: { type: 'cat', color: '#ff9e6b' }, status: 'working', folder: 'site', activity: 'Running tests' },
+  { id: 'lu', name: 'Lu', look: { type: 'ghost', color: '#b69cff' }, status: 'review' },
+  { id: 'pip', name: 'Pip', look: PIP, status: 'ask' },
+  { id: 'mo', name: 'Mo', look: { type: 'blob', color: '#7cc4ff' }, status: 'question' },
+  { id: 'kai', name: 'Kai', look: { type: 'pebble', color: '#5fd6c9' }, status: 'done' },
+  { id: 'nap', name: 'Ivy', look: NAPPER, status: 'nap', activity: 'Waiting on Sarah' },
+  { id: 'docs', name: 'Bo', look: { type: 'star', color: '#ffd36b' }, status: 'gone', folder: 'docs', activity: 'Writing notes.md' },
+];
 
-const LOOKS: Record<string, Look> = {
-  shop: { type: 'flower', color: '#ff8fb1' },
-  api: { type: 'droid', color: '#8fe388' },
-  site: { type: 'cat', color: '#ff9e6b' },
-  checked: { type: 'ghost', color: '#b69cff' },
-  ask: PIP,
-  question: { type: 'blob', color: '#7cc4ff' },
-  done: { type: 'pebble', color: '#5fd6c9' },
-};
-
-type Side = 'right' | 'left' | 'below' | 'above';
+type Thing = 'input' | 'pill' | 'rex' | 'meety';
 
 interface Layout {
   w: number;
   h: number;
-  /** Where each thing sits (its anchor point: feet for bots, centre for the rest). */
-  at: Record<Id | 'checked' | 'home', { x: number; y: number }>;
-  inputWidth: number;
-  /** Where Meety stands to explain each thing, and on which side of her the bubble goes (none: a strip). */
-  spot: Record<Id | 'hello', { x: number; y: number; side?: Side }>;
+  folders: Record<Folder, { x: number; y: number }>;
+  nap: { x: number; y: number };
+  rex: { x: number; y: number };
+  review: { x: number; y: number };
+  queue: { x: number; y: number; gap: number };
+  input: { x: number; y: number; width: number };
+  pill: { x: number; y: number };
+  home: { x: number; y: number };
+  /** Bubbles beside Meety; on a phone what she says is a strip instead. */
+  bubbles: boolean;
 }
 
 const WIDE: Layout = {
-  w: 1200, h: 700, inputWidth: 420,
-  at: {
-    shop: { x: 180, y: 170 }, api: { x: 560, y: 140 }, site: { x: 960, y: 170 },
-    nap: { x: 1050, y: 400 }, rex: { x: 170, y: 400 }, checked: { x: 260, y: 400 },
-    ask: { x: 520, y: 520 }, question: { x: 600, y: 520 }, done: { x: 680, y: 520 },
-    input: { x: 600, y: 572 }, pill: { x: 600, y: 662 }, meety: { x: 600, y: 380 }, home: { x: 600, y: 380 },
-  },
-  spot: {
-    hello: { x: 600, y: 380, side: 'right' }, meety: { x: 600, y: 380, side: 'right' },
-    shop: { x: 270, y: 175, side: 'below' }, api: { x: 720, y: 150, side: 'below' }, site: { x: 1050, y: 175, side: 'below' },
-    rex: { x: 360, y: 400, side: 'right' }, nap: { x: 930, y: 400, side: 'left' },
-    ask: { x: 790, y: 522, side: 'right' }, question: { x: 790, y: 522, side: 'right' }, done: { x: 790, y: 522, side: 'right' },
-    input: { x: 980, y: 640, side: 'above' }, pill: { x: 720, y: 672, side: 'right' },
-  },
+  w: 1200, h: 700, bubbles: true,
+  folders: { shop: { x: 180, y: 170 }, api: { x: 560, y: 140 }, site: { x: 960, y: 170 }, docs: { x: 390, y: 300 } },
+  nap: { x: 1050, y: 400 }, rex: { x: 170, y: 400 }, review: { x: 260, y: 400 },
+  queue: { x: 600, y: 520, gap: 80 }, input: { x: 600, y: 572, width: 420 }, pill: { x: 600, y: 662 }, home: { x: 600, y: 380 },
 };
 const TALL: Layout = {
-  w: 400, h: 780, inputWidth: 320,
-  at: {
-    shop: { x: 90, y: 140 }, api: { x: 250, y: 120 }, site: { x: 110, y: 310 },
-    nap: { x: 300, y: 320 }, rex: { x: 80, y: 470 }, checked: { x: 160, y: 470 },
-    ask: { x: 130, y: 600 }, question: { x: 200, y: 600 }, done: { x: 270, y: 600 },
-    input: { x: 200, y: 650 }, pill: { x: 200, y: 738 }, meety: { x: 300, y: 470 }, home: { x: 300, y: 470 },
-  },
-  // on a phone she still runs over, and what she says shows as a strip at the top or bottom
-  spot: {
-    hello: { x: 300, y: 470 }, meety: { x: 300, y: 470 },
-    shop: { x: 170, y: 150 }, api: { x: 190, y: 225 }, site: { x: 200, y: 320 },
-    rex: { x: 240, y: 470 }, nap: { x: 220, y: 330 },
-    ask: { x: 340, y: 600 }, question: { x: 340, y: 600 }, done: { x: 340, y: 600 },
-    input: { x: 340, y: 540 }, pill: { x: 300, y: 745 },
-  },
+  w: 400, h: 780, bubbles: false,
+  folders: { shop: { x: 90, y: 140 }, api: { x: 250, y: 120 }, site: { x: 110, y: 310 }, docs: { x: 270, y: 225 } },
+  nap: { x: 300, y: 330 }, rex: { x: 80, y: 470 }, review: { x: 160, y: 470 },
+  queue: { x: 200, y: 585, gap: 62 }, input: { x: 200, y: 632, width: 320 }, pill: { x: 200, y: 706 }, home: { x: 300, y: 470 },
 };
-/** The bubble's width on the wide canvas. */
-const BUBBLE = 220;
 
 const SIZE = 40;
+const BUBBLE = 230;
+/** After a click, the canvas holds still this long so Meety's explanation stays true. */
+const HOLD_MS = 14000;
+const LOOP_MS = 30000;
+const JOB = 'Write the release notes';
+
+const SAY = {
+  hello: 'Here they are at work. Click any bot or thing and I’ll tell you what it is.',
+  working: 'Every Claude Code session is a bot like this one. It works in its own folder while you do something else.',
+  tests: 'Running the tests. When it’s done it comes over to you, you don’t have to keep checking.',
+  subagents: 'This one split a big job. The little copies are its subagents, working in parallel.',
+  hatched: 'A new one, hatched from the input a moment ago. It’s writing the release notes in its own folder.',
+  nap: 'Napping. It’s waiting on a colleague and wakes up by itself when something new comes in.',
+  review: 'Rex is checking this one’s work against your rules and tests before it reaches you.',
+  rex: 'My older brother Rex. He checks a bot’s work before it comes back to you.',
+  input: 'Type a job here and a new bot hatches. Or hold fn and just say it.',
+  pill: 'The pill works in every app. Hold fn and talk, and your words appear as text, right on your Mac.',
+};
 
 function useTheme(): 'light' | 'dark' {
   const query = '(prefers-color-scheme: dark)';
@@ -115,9 +111,9 @@ function useViewport() {
   return v;
 }
 
-const Folder = ({ name }: { name: string }) => (
+const FolderIcon = ({ name }: { name: string }) => (
   <span className="folder">
-    <svg width="34" height="27" viewBox="0 0 40 32" fill="none" aria-hidden>
+    <svg width="24" height="19" viewBox="0 0 40 32" fill="none" aria-hidden>
       <path d="M3 8a4 4 0 0 1 4-4h8.4c1 0 2 .4 2.8 1.2L20.4 7.4H33a4 4 0 0 1 4 4V26a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z" fill="currentColor" opacity=".18" />
       <path d="M3 12h34" stroke="currentColor" strokeOpacity=".28" />
     </svg>
@@ -125,31 +121,197 @@ const Folder = ({ name }: { name: string }) => (
   </span>
 );
 
+const BADGE: Partial<Record<Status, '!' | '?' | '✓'>> = { ask: '!', question: '?', done: '✓' };
+const WAITING: Status[] = ['ask', 'question', 'done'];
+
 export function App() {
   const theme = useTheme();
   const view = useViewport();
   const layout = view.w / view.h < 0.9 ? TALL : WIDE;
-  const [picked, setPicked] = useState<Id | null>(null);
-  // layout units to screen pixels: the places spread over the whole canvas screen
   const W = view.w;
   const H = view.h;
-  const px = <T extends { x: number; y: number }>(p: T): T => ({ ...p, x: (p.x / layout.w) * W, y: (p.y / layout.h) * H });
-  const at = Object.fromEntries(Object.entries(layout.at).map(([k, p]) => [k, px(p)])) as Layout['at'];
+  const px = (p: { x: number; y: number }) => ({ x: (p.x / layout.w) * W, y: (p.y / layout.h) * H });
 
-  // Meety stands beside what you clicked, her bubble on the free side (a strip on a phone)
-  const spot = px(layout.spot[picked ?? 'hello']);
-  const meety = { x: spot.x, y: spot.y };
-  const say = SAY[picked ?? 'hello'];
+  const [bots, setBots] = useState<Botling[]>(INITIAL);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [typed, setTyped] = useState('');
+  const [ticks, setTicks] = useState<Record<string, boolean>>({});
+  const [sheet, setSheet] = useState<SheetId | null>(null);
+  const lastClick = useRef(0);
+  const pick = (id: string | null) => {
+    lastClick.current = Date.now();
+    setPicked(id);
+  };
+  const update = (id: string, p: Partial<Botling>) => setBots(bs => bs.map(b => (b.id === id ? { ...b, ...p } : b)));
+
+  // ---------- where everyone stands (layout units) ----------
+
+  const queue = bots.filter(b => WAITING.includes(b.status));
+  const napping = bots.filter(b => b.status === 'nap');
+  const unitsOf = (b: Botling): { x: number; y: number } => {
+    if (WAITING.includes(b.status)) {
+      const k = queue.indexOf(b);
+      return { x: layout.queue.x + (k - (queue.length - 1) / 2) * layout.queue.gap, y: layout.queue.y };
+    }
+    if (b.status === 'nap') return { x: layout.nap.x + napping.indexOf(b) * 44, y: layout.nap.y };
+    if (b.status === 'review') return layout.review;
+    if (b.status === 'hatch') return { x: layout.input.x, y: layout.input.y + 10 };
+    const f = b.folder ? layout.folders[b.folder] : layout.home;
+    const mates = bots.filter(x => x.folder === b.folder && (x.status === 'working' || x.status === 'subagents'));
+    return { x: f.x + Math.max(0, mates.indexOf(b)) * 46, y: f.y };
+  };
+  const reviewed = bots.find(b => b.status === 'review');
+  const folders = (Object.keys(layout.folders) as Folder[]).filter(f => f !== 'docs' || bots.some(b => b.folder === 'docs' && b.status !== 'gone' && b.status !== 'hatch'));
+
+  // ---------- the canvas lives: a short story that repeats ----------
+
+  useEffect(() => {
+    if (reducedMotion()) return;
+    const steps: [number, () => void][] = [
+      [5000, () => update('site', { status: 'done', activity: undefined })],
+      [9000, () => setTyped(JOB.slice(0, 1))],
+      [11800, () => {
+        setTyped('');
+        update('docs', { status: 'hatch' });
+      }],
+      [12100, () => update('docs', { status: 'working' })],
+      [18000, () => {
+        update('lu', { status: 'done' });
+        update('shop', { status: 'review' });
+      }],
+      // the story's own bots go back to the start; whoever you answered keeps their new job
+      [26000, () => setBots(bs => bs.map(b => (['site', 'docs', 'lu', 'shop'].includes(b.id) ? INITIAL.find(x => x.id === b.id)! : b)))],
+    ];
+    const timers: number[] = [];
+    const run = () => {
+      for (const [at, fn] of steps) {
+        timers.push(window.setTimeout(() => {
+          // after a click the canvas holds still, so what Meety explains stays where it is
+          if (Date.now() - lastClick.current < HOLD_MS) return;
+          fn();
+        }, at));
+      }
+      timers.push(window.setTimeout(run, LOOP_MS));
+    };
+    run();
+    return () => timers.forEach(clearTimeout);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // the job types itself into the input before the new bot hatches
+  useEffect(() => {
+    if (!typed || typed.length >= JOB.length) return;
+    const t = window.setTimeout(() => setTyped(JOB.slice(0, typed.length + 1)), 90);
+    return () => clearTimeout(t);
+  }, [typed]);
+
+  // ---------- Meety ----------
+
+  const thingAt: Record<Thing, { x: number; y: number }> = {
+    input: { x: layout.input.x + layout.input.width / 2, y: layout.input.y }, pill: layout.pill, rex: layout.rex, meety: layout.home,
+  };
+  const pickedBot = picked ? bots.find(b => b.id === picked) : undefined;
+  const spotFor = (): { x: number; y: number; side?: 'right' | 'left' | 'below' | 'above' } => {
+    if (!picked || picked === 'meety') return { ...layout.home, side: layout.bubbles ? 'right' : undefined };
+    if (!layout.bubbles) {
+      const t = pickedBot ? unitsOf(pickedBot) : thingAt[picked as Thing];
+      // in the row of waiting bots there is no room beside one: she stands just above it
+      if (pickedBot && WAITING.includes(pickedBot.status)) return { x: t.x, y: t.y - 62 };
+      return { x: Math.min(layout.w - 30, Math.max(30, t.x + 60)), y: t.y };
+    }
+    if (picked === 'input') return { x: 980, y: 640, side: 'above' };
+    if (picked === 'pill') return { x: 720, y: 672, side: 'right' };
+    if (picked === 'rex') return { x: 360, y: 400, side: 'right' };
+    if (pickedBot && WAITING.includes(pickedBot.status)) {
+      const last = layout.queue.x + ((queue.length - 1) / 2) * layout.queue.gap;
+      return { x: last + 100, y: layout.queue.y, side: 'right' };
+    }
+    const t = pickedBot ? unitsOf(pickedBot) : layout.home;
+    const right = t.x < layout.w * 0.62;
+    const high = t.y < 260;
+    return { x: t.x + (right ? 100 : -100), y: t.y + 4, side: high ? 'below' : right ? 'right' : 'left' };
+  };
+  const spotUnits = spotFor();
+  const spot = { ...px(spotUnits), side: spotUnits.side };
   const clampLeft = (left: number) => Math.max(12, Math.min(W - BUBBLE - 12, left));
   const bubble: React.CSSProperties | null = !spot.side ? null
     : spot.side === 'right' ? { left: spot.x + 32, top: spot.y - 52 }
     : spot.side === 'left' ? { left: spot.x - 32 - BUBBLE, top: spot.y - 52 }
     : spot.side === 'below' ? { left: clampLeft(spot.x - BUBBLE / 2), top: spot.y + 28 }
     : { left: clampLeft(spot.x - BUBBLE / 2), top: spot.y - 62, transform: 'translateY(-100%)' };
-  // the strip goes where it doesn't cover what she explains
+  // the strip on a phone goes where it doesn't cover what she explains
   const stripTop = spot.y > H / 2;
 
-  // the first time the canvas comes into view, a ring pulses once round everything you can click
+  const answer = (b: Botling, next: Partial<Botling>) => {
+    update(b.id, next);
+    pick(null);
+  };
+  const talk = (): React.ReactNode => {
+    if (picked === 'meety') {
+      return (
+        <>
+          <p>That’s me. I keep your meetings, right on your Mac.</p>
+          <div className="card mini">
+            <p><b>You</b> Can we ship on Friday?</p>
+            <p><b>Anna</b> If the tests pass on Thursday.</p>
+            <p className="muted">Summary. Ship Friday, Anna runs the tests.</p>
+          </div>
+          <a className="btn sm" href={DOWNLOAD_URL} onClick={() => setSheet('install')}>Download for Mac</a>
+        </>
+      );
+    }
+    if (picked === 'input' || picked === 'pill' || picked === 'rex') return <p>{SAY[picked]}</p>;
+    const b = pickedBot;
+    if (!b) return <p>{SAY.hello}</p>;
+    if (b.status === 'ask') {
+      return (
+        <>
+          <p className="muted">{b.name} wants to run</p>
+          <p className="mono">npm test</p>
+          <p className="muted small">It waits until you allow it.</p>
+          <div className="actions">
+            <button className="btn sm quiet" onClick={() => answer(b, { status: 'done', activity: undefined })}>Deny</button>
+            <button className="btn sm" onClick={() => answer(b, { status: 'working', folder: 'shop', activity: 'Running npm test' })}>Allow</button>
+          </div>
+        </>
+      );
+    }
+    if (b.status === 'question') {
+      return (
+        <>
+          <p className="muted">{b.name} asks</p>
+          <p>Postgres or SQLite for the prototype?</p>
+          <div className="actions">
+            <button className="btn sm quiet" onClick={() => answer(b, { status: 'working', folder: 'api', activity: 'Setting up Postgres' })}>Postgres</button>
+            <button className="btn sm" onClick={() => answer(b, { status: 'working', folder: 'api', activity: 'Setting up SQLite' })}>SQLite</button>
+          </div>
+        </>
+      );
+    }
+    if (b.status === 'done') {
+      const steps = ['Look at the new pricing page', 'Tell Anna it’s live'];
+      return (
+        <>
+          <p className="muted">{b.name} is done</p>
+          <p>Shortened the pricing page. Steps for you.</p>
+          <ul className="ticks">
+            {steps.map(s => {
+              const key = `${b.id}${s}`;
+              return <li key={s}><button className={ticks[key] ? 'on' : ''} onClick={() => setTicks(t => ({ ...t, [key]: !t[key] }))} aria-pressed={!!ticks[key]} aria-label={s} />{s}</li>;
+            })}
+          </ul>
+          <div className="actions"><button className="btn sm" onClick={() => answer(b, { status: 'nap', activity: 'Resting' })}>Thanks</button></div>
+        </>
+      );
+    }
+    if (b.status === 'nap') return <p>{SAY.nap}</p>;
+    if (b.status === 'review') return <p>{SAY.review}</p>;
+    if (b.status === 'subagents') return <p>{SAY.subagents}</p>;
+    if (b.id === 'docs') return <p>{SAY.hatched}</p>;
+    if (b.activity === 'Running tests') return <p>{SAY.tests}</p>;
+    return <p>{SAY.working}</p>;
+  };
+
+  // ---------- the first view: a ring round what you can click ----------
+
   const world = useRef<HTMLElement | null>(null);
   const [hinting, setHinting] = useState(false);
   useEffect(() => {
@@ -159,14 +321,14 @@ export function App() {
       if (!e.isIntersecting || e.intersectionRatio < 0.6) return;
       seen.disconnect();
       setHinting(true);
-      window.setTimeout(() => setHinting(false), 3200);
+      window.setTimeout(() => setHinting(false), 3600);
     }, { threshold: [0, 0.6] });
     seen.observe(el);
     return () => seen.disconnect();
   }, []);
-  const order = ['shop', 'api', 'site', 'rex', 'nap', 'ask', 'question', 'done', 'input', 'pill'];
 
-  // on the welcome screen Meety hops in and offers to show you around
+  // ---------- the welcome screen: Meety hops in and offers to show you around ----------
+
   const guide = useRef<HTMLDivElement | null>(null);
   const [guideW, setGuideW] = useState(0);
   const measureGuide = useCallback((el: HTMLDivElement | null) => {
@@ -186,34 +348,25 @@ export function App() {
     world.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // a thing you can click: the question-mark cursor, and Meety explains it
-  const item = (id: Id, className: string, style: React.CSSProperties, children: React.ReactNode) => (
-    <button className={`item ${className} ${picked === id ? 'picked' : ''} ${['ask', 'question', 'done'].includes(id) ? 'queued' : ''} ${hinting ? 'hint' : ''}`}
-      style={{ ...style, ['--k' as string]: order.indexOf(id) }} onClick={() => setPicked(id)} aria-label={LABEL[id]}>
-      {children}
-    </button>
-  );
-  const bot = (id: Id, look: Look, x: number, y: number, state: 'working' | 'default' | 'sleeping', extra?: React.ReactNode, size = SIZE) =>
-    item(id, 'thing', { left: x - size / 2, top: y - size, width: size }, (
-      <>
-        <Avatar look={look} size={size} state={state} theme={theme} />
-        {extra}
-      </>
-    ));
+  const download = (className = 'btn') => <a className={className} href={DOWNLOAD_URL} onClick={() => setSheet('install')}>Download for Mac</a>;
+  // the order the hint ring goes round in
+  let order = 0;
+  const hint = () => ({ ['--k' as string]: order++ });
 
   return (
     <>
       <section className="welcome">
         <header className="top">
           <span className="mark">botlings</span>
-          <a className="btn" href={DOWNLOAD_URL}>Download for Mac</a>
+          {download()}
         </header>
         <div className="hello">
+          <button className="news" onClick={() => setSheet('new')}>New in 0.3. Rex checks your bots’ work.</button>
           <h1>Your Claude Code sessions, as little bots.</h1>
           <p>They work in their folders, come to you when they need you, and nap while you wait on someone else. Meety keeps your meetings, and you can talk to all of them.</p>
           <p className="facts">Free. For Macs with Apple chips and macOS 14 or later. Needs Claude Code.</p>
+          <p className="trust">No account. No tracking. Dictation stays on your Mac.</p>
         </div>
-        {/* Meety hops in from the side and offers a tour */}
         <div className="guide" ref={measureGuide}>
           {guideW > 0 && (
             <Bot name="Meety" look={MEETY} x={arrived ? guideW / 2 - 150 : guideW + 80} y={64} size={52} theme={theme} state="default" showName={false} speed={1.4} label="Meety" />
@@ -232,77 +385,97 @@ export function App() {
             </div>
           )}
         </div>
-        <button className="next" onClick={() => document.querySelector('.world')?.scrollIntoView({ behavior: 'smooth' })} aria-label="See them at work">
+        <button className="next" onClick={() => world.current?.scrollIntoView({ behavior: 'smooth' })} aria-label="See them at work">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 3.5v11M4.5 10 9 14.5 13.5 10" /></svg>
         </button>
       </section>
 
-      <section className="world" ref={world} onClick={e => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('canvas')) setPicked(null); }}>
+      <section className={`world ${hinting ? 'hinting' : ''}`} ref={world} onClick={e => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('canvas')) pick(null); }}>
         <div className="canvas" style={{ width: W, height: H }}>
-          {/* folders, and the bots working in them */}
-          <span className="place" style={{ left: at.shop.x - 52, top: at.shop.y - 32 }}><Folder name="shop" /></span>
-          {bot('shop', LOOKS.shop, at.shop.x, at.shop.y, 'working', <span className="activity">Editing cart.ts</span>)}
+          {folders.map(f => {
+            const p = px(layout.folders[f]);
+            return <span key={f} className="place" style={{ left: p.x - 52, top: p.y - 32 }}><FolderIcon name={f} /></span>;
+          })}
 
-          <span className="place" style={{ left: at.api.x - 52, top: at.api.y - 32 }}><Folder name="api" /></span>
-          {bot('api', LOOKS.api, at.api.x, at.api.y, 'working', (
-            <>
-              <span className="minis" aria-hidden>{[0, 1, 2].map(k => <Avatar key={k} look={LOOKS.api} size={16} state="working" theme={theme} />)}</span>
-              <span className="activity">Searching the code</span>
-            </>
-          ))}
-
-          <span className="place" style={{ left: at.site.x - 52, top: at.site.y - 32 }}><Folder name="site" /></span>
-          {bot('site', LOOKS.site, at.site.x, at.site.y, 'working', <span className="activity">Running tests</span>)}
-
-          {/* the nap spot */}
-          {item('nap', 'nap', { left: at.nap.x - 60, top: at.nap.y - 46 }, (
-            <>
-              <span className="moon" aria-hidden>
-                <svg width="26" height="22" viewBox="0 0 34 28" fill="none"><path d="M22.5 4.2A10.5 10.5 0 1 0 28.8 18 8.6 8.6 0 0 1 22.5 4.2z" fill="currentColor" opacity=".25" /></svg>
+          {(() => {
+            const p = px(layout.nap);
+            return (
+              <span className="place moon" style={{ left: p.x - 24, top: p.y - 64 }}>
+                <svg width="18" height="15" viewBox="0 0 34 28" fill="none" aria-hidden><path d="M22.5 4.2A10.5 10.5 0 1 0 28.8 18 8.6 8.6 0 0 1 22.5 4.2z" fill="currentColor" opacity=".25" /></svg>
                 Nap
               </span>
-              <Avatar look={NAPPER} size={34} state="sleeping" theme={theme} />
-              <span className="activity">Waiting on Sarah</span>
-            </>
-          ))}
+            );
+          })()}
 
-          {/* Rex checking someone's work */}
-          {item('rex', 'rex', { left: at.rex.x - 21, top: at.rex.y - 42 }, (
-            <>
-              <Avatar look={REX} size={38} theme={theme} state="working" />
-              <span className="activity">Checking Lu’s work</span>
-            </>
-          ))}
-          <span className="checked" style={{ left: at.checked.x - 17, top: at.checked.y - 34 }}><Avatar look={LOOKS.checked} size={34} theme={theme} /></span>
+          {(() => {
+            const p = px(layout.rex);
+            return (
+              <button className={`item rex ${picked === 'rex' ? 'picked' : ''}`} style={{ left: p.x - 21, top: p.y - 42, ...hint() }} onClick={() => pick('rex')} aria-label="Rex, the reviewer">
+                <Avatar look={REX} size={38} theme={theme} state={reviewed ? 'working' : 'default'} />
+                <span className="activity">{reviewed ? `Checking ${reviewed.name}’s work` : 'Waiting for work'}</span>
+              </button>
+            );
+          })()}
 
-          {/* the bots waiting for you, above the input */}
-          {bot('ask', LOOKS.ask, at.ask.x, at.ask.y, 'default', <span className="badge">!</span>)}
-          {bot('question', LOOKS.question, at.question.x, at.question.y, 'default', <span className="badge">?</span>)}
-          {bot('done', LOOKS.done, at.done.x, at.done.y, 'default', <span className="badge">✓</span>)}
-          {item('input', 'input', { left: at.input.x - layout.inputWidth / 2, top: at.input.y - 8, width: layout.inputWidth }, <span>What should a new botling work on?</span>)}
-          {item('pill', 'pill', { left: at.pill.x - 34, top: at.pill.y - 11 }, Array.from({ length: 11 }, (_, k) => <i key={k} style={{ animationDelay: `${(k % 6) * 80}ms` }} />))}
+          {bots.map(b => {
+            const p = px(unitsOf(b));
+            const waits = WAITING.includes(b.status);
+            return (
+              <Bot key={b.id} name={b.name} look={b.look} x={p.x} y={p.y} size={b.status === 'nap' ? 34 : SIZE} theme={theme} showName={false}
+                state={b.status === 'nap' ? 'sleeping' : b.status === 'working' || b.status === 'subagents' ? 'working' : 'default'}
+                hidden={b.status === 'gone'} speed={1.2} badge={BADGE[b.status]}
+                className={`item thing ${waits ? 'queued' : ''} ${picked === b.id ? 'picked' : ''}`} style={hint()}
+                label={`${b.name}${waits ? `, ${b.status === 'ask' ? 'asking for permission' : b.status === 'question' ? 'with a question' : 'done'}` : ''}`}
+                onSelect={b.status === 'gone' ? undefined : () => pick(b.id)}>
+                {b.status === 'subagents' && <span className="minis" aria-hidden>{[0, 1, 2].map(n => <Avatar key={n} look={b.look} size={16} state="working" theme={theme} />)}</span>}
+                {(b.status === 'working' || b.status === 'subagents' || b.status === 'nap') && b.activity && <span className="activity">{b.activity}</span>}
+              </Bot>
+            );
+          })}
 
-          {/* Meety: at home until you click something, then she runs over */}
-          <Bot name="Meety" look={MEETY} x={meety.x} y={meety.y} size={46} theme={theme} state="default" showName={false} speed={1.8}
-            onSelect={() => setPicked('meety')} label="Meety" />
+          {(() => {
+            const p = px(layout.input);
+            return (
+              <button className={`item input ${picked === 'input' ? 'picked' : ''}`} style={{ left: p.x - layout.input.width / 2, top: p.y - 8, width: layout.input.width, ...hint() }} onClick={() => pick('input')} aria-label="The input">
+                <span className={typed ? 'typed' : ''}>{typed || 'What should a new botling work on?'}</span>
+              </button>
+            );
+          })()}
+          {(() => {
+            const p = px(layout.pill);
+            return (
+              <button className={`item pill ${picked === 'pill' ? 'picked' : ''}`} style={{ left: p.x - 34, top: p.y - 11, ...hint() }} onClick={() => pick('pill')} aria-label="The dictation pill">
+                {Array.from({ length: 11 }, (_, n) => <i key={n} style={{ animationDelay: `${(n % 6) * 80}ms` }} />)}
+              </button>
+            );
+          })()}
+
+          <Bot name="Meety" look={MEETY} x={spot.x} y={spot.y} size={46} theme={theme} state="default" showName={false} speed={1.8}
+            onSelect={() => pick('meety')} label="Meety" className="item" />
           {bubble && (
-            <div className={`say ${spot.side}`} key={picked ?? 'hello'} aria-live="polite" style={{ ...bubble, width: BUBBLE }}>
-              {say}
-              {picked === 'meety' && <a className="btn sm" href={DOWNLOAD_URL}>Download for Mac</a>}
+            <div className={`say ${spot.side}`} key={`${picked ?? 'hello'}${pickedBot?.status ?? ''}`} aria-live="polite" style={{ ...bubble, width: BUBBLE }}>
+              {talk()}
             </div>
           )}
         </div>
         {!spot.side && (
-          <div className={`strip ${stripTop ? 'top' : 'bottom'}`} key={picked ?? 'hello'} aria-live="polite">
-            {say}
-            {picked === 'meety' && <a className="btn sm" href={DOWNLOAD_URL}>Download for Mac</a>}
+          <div className={`strip ${stripTop ? 'at-top' : 'at-bottom'}`} key={`${picked ?? 'hello'}${pickedBot?.status ?? ''}`} aria-live="polite">
+            {talk()}
           </div>
         )}
         <footer className="foot">
           <span>Not affiliated with Anthropic.</span>
-          <span><a href={DOWNLOAD_URL}>Download for Mac</a><a href={`${import.meta.env.BASE_URL}notices.txt`}>Notices</a></span>
+          <nav>
+            <button onClick={() => setSheet('faq')}>Questions</button>
+            <button onClick={() => setSheet('new')}>What’s new</button>
+            <button onClick={() => setSheet('privacy')}>Privacy</button>
+            <button onClick={() => setSheet('imprint')}>Imprint</button>
+            <a href={`${import.meta.env.BASE_URL}notices.txt`}>Notices</a>
+          </nav>
         </footer>
       </section>
+
+      {sheet && <Sheet id={sheet} onClose={() => setSheet(null)} />}
     </>
   );
 }
