@@ -1,10 +1,12 @@
 /* Norn tokens, the same as the app. The only colour on the page belongs to the bots. */
 :root{
   --font-sans:"Inter Variable","Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;
   --bg:#ffffff; --ink:#171717; --body:#525252; --muted:#6b7076;
-  --raised:#ffffff; --strong:#171717; --on-strong:#ffffff;
+  --line:#ebeced; --panel:#f5f5f5; --raised:#ffffff; --strong:#171717; --on-strong:#ffffff;
   --grid:rgba(23,23,23,.07);
   --shadow-float:0 0 0 1px rgba(23,23,23,.06),0 10px 28px -14px rgba(23,23,23,.16);
+  --shadow-window:0 0 0 1px rgba(23,23,23,.06),0 24px 48px -20px rgba(23,23,23,.2);
   --focus:0 0 0 3px rgba(23,23,23,.18);
   --ease-out:cubic-bezier(0.23,1,0.32,1);
   color-scheme:light;
@@ -12,9 +14,10 @@
 @media (prefers-color-scheme: dark){
   :root{
     --bg:#0e0f10; --ink:#f2f3f4; --body:#a9adb2; --muted:#8a8f95;
-    --raised:#1c1d20; --strong:#f2f3f4; --on-strong:#0e0f10;
+    --line:#232527; --panel:#18191b; --raised:#1c1d20; --strong:#f2f3f4; --on-strong:#0e0f10;
     --grid:rgba(255,255,255,.06);
     --shadow-float:0 0 0 1px rgba(255,255,255,.06),0 10px 28px -14px rgba(0,0,0,.6);
+    --shadow-window:0 0 0 1px rgba(255,255,255,.07),0 24px 48px -20px rgba(0,0,0,.7);
     --focus:0 0 0 3px rgba(242,243,244,.22);
     color-scheme:dark;
   }
@@ -26,83 +29,99 @@ body{margin:0;background:var(--bg);color:var(--ink);font:17px/27px var(--font-sa
 p{margin:0}
 a{color:inherit}
 :focus-visible{outline:none;box-shadow:var(--focus)}
+.muted{color:var(--muted)}
 
-.page{max-width:1040px;margin:0 auto;padding:0 32px}
-
+.page{max-width:1080px;margin:0 auto;padding:0 32px}
 .top{display:flex;align-items:center;justify-content:space-between;height:80px}
 .mark{font-weight:600;font-size:17px;letter-spacing:-.01em}
 .btn{display:inline-flex;align-items:center;height:36px;padding:0 16px;border:0;border-radius:10px;background:var(--strong);color:var(--on-strong);font:500 14px var(--font-sans);text-decoration:none;cursor:pointer;transition:transform .15s var(--ease-out)}
 .btn:active{transform:scale(.97)}
+.btn.quiet{background:var(--panel);color:var(--ink)}
+.btn.big{height:48px;padding:0 24px;font-size:16px;border-radius:12px}
 
-.line{margin:56px 0 0;max-width:40ch;font-size:20px;line-height:28px;font-weight:500;letter-spacing:-.012em;color:var(--body)}
+/* the parts: plain sections down the page, a window on one side, Meety on the other */
+main{position:relative}
+.part{display:flex;padding:96px 0}
+.part.right{justify-content:flex-end}
+.part .anchor{width:min(560px,100%)}
+.hero{padding:88px 0 40px}
+.hero-anchor{width:auto;max-width:560px}
+h1{margin:0;font-size:clamp(32px,4.4vw,52px);line-height:1.06;font-weight:600;letter-spacing:-.032em}
+.end{padding:120px 0 80px}
+.end-anchor{display:flex;flex-direction:column;align-items:flex-start;gap:16px;width:auto}
+.end-anchor p{font-size:15px}
 
-/* the tour: Meety in the middle of the dot grid, her bubble under her */
-.tour{position:relative;margin-top:32px;touch-action:pan-y}
-.stage{position:relative}
-/* the grid fades out at the edges; only the grid, so a bubble is never cut */
-.stage::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);background-size:22px 22px;background-position:center;
-  -webkit-mask-image:radial-gradient(closest-side,#000 75%,transparent);mask-image:radial-gradient(closest-side,#000 75%,transparent)}
-.stage-inner{position:absolute;inset:0}
-.bot{position:absolute;padding:0;border:0;background:none;transform-origin:50% 100%;cursor:default}
-.bot[tabindex="0"]{cursor:pointer}
+/* Meety and what she says */
+.bot{position:absolute;padding:0;border:0;background:none;transform-origin:50% 100%;cursor:default;z-index:2}
 .bot .name{display:none}
-.bot .badge{position:absolute;top:-2px;right:-4px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--strong);color:var(--on-strong);font-size:12px;font-weight:700;box-shadow:0 0 0 2px var(--bg)}
+.say{position:absolute;z-index:2;width:min(300px,calc(100vw - 120px));padding:12px 15px;background:var(--raised);border-radius:14px;box-shadow:var(--shadow-float);font-size:15px;line-height:23px;animation:say .3s var(--ease-out) .55s both}
+.say::before{content:"";position:absolute;top:24px;width:10px;height:10px;background:var(--raised);transform:rotate(45deg)}
+.say.right::before{left:-5px}
+.say.left::before{right:-5px}
+@keyframes say{from{opacity:0;transform:translateY(4px)}}
+@keyframes say-up{from{opacity:0;transform:translateY(calc(-100% + 4px))}}
 
-.say{position:absolute;left:50%;width:min(340px,calc(100% - 32px));transform:translateX(-50%);padding:14px 16px;background:var(--raised);border-radius:16px;box-shadow:var(--shadow-float);font-size:15px;line-height:23px;animation:say .3s var(--ease-out) both}
-.say::before{content:"";position:absolute;left:50%;top:-5px;width:10px;height:10px;margin-left:-5px;background:var(--raised);transform:rotate(45deg)}
-.say .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
-.say .btn{height:32px;padding:0 14px;font-size:13px;border-radius:9px}
-@keyframes say{from{opacity:0;transform:translate(-50%,6px)}}
+/* the windows: they look like botlings */
+.window{position:relative;overflow:hidden;background:var(--raised);border-radius:16px;box-shadow:var(--shadow-window)}
+.window-bar{display:flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.window-bar i{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.window-bar span{margin-left:8px}
+.window-body{position:relative;padding:22px}
+.folder{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:var(--muted)}
+.badge{position:absolute;top:-2px;right:-6px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--strong);color:var(--on-strong);font-size:12px;font-weight:700;box-shadow:0 0 0 2px var(--raised)}
 
-.hint{position:absolute;left:0;right:0;top:260px;text-align:center;font-size:14px;color:var(--muted);opacity:0;transition:opacity .6s}
-.hint.shown{opacity:1}
+.canvas-view .window-body{height:300px}
+.grid-bg{position:absolute;inset:0;background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);background-size:20px 20px}
+.spot{position:absolute;display:flex;align-items:center;gap:10px}
+.waiting{position:absolute;left:50%;bottom:76px;transform:translateX(-50%)}
+.input{position:absolute;left:22px;right:22px;bottom:18px;height:44px;display:flex;align-items:center;padding:0 16px;border-radius:12px;background:var(--raised);box-shadow:var(--shadow-float);color:var(--muted);font-size:14px}
 
-/* b: a tall box you scroll through, the stage and the card above Meety stay in view */
-.scroll{margin-top:16px}
-.scroll .sticky{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;justify-content:center}
-.scroll .hint{top:auto;bottom:24px}
-.card-slot{height:170px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:-40px;position:relative;z-index:1}
+.ask-row{display:flex;align-items:flex-end;gap:14px}
+.ask-card{flex:1;padding:14px 16px;border-radius:14px;background:var(--panel)}
+.ask-card .mono{font:14px/22px var(--font-mono);margin:4px 0 2px}
+.ask-card .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.ask-card .btn{height:30px;padding:0 12px;font-size:13px;border-radius:8px}
 
-/* the feature cards: small, monochrome, a little scene each */
-.card{width:min(340px,calc(100% - 32px));padding:14px 16px;background:var(--raised);border-radius:16px;box-shadow:var(--shadow-float);font-size:14px;line-height:21px;color:var(--body);animation:appear .3s var(--ease-out) both}
-@keyframes appear{from{opacity:0;transform:translateY(6px)}}
-.card.nap{display:flex;align-items:center;gap:12px;color:var(--muted)}
-.card.review{display:flex;align-items:center;gap:14px}
-.card.review ul{margin:0;padding:0;list-style:none}
-.card.review li::before{content:"✓";display:inline-block;width:18px;color:var(--ink);font-weight:600}
-.card.dictate{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
-.pill{display:inline-flex;align-items:center;gap:3px;height:28px;padding:0 12px;border-radius:14px;background:var(--strong)}
+.nap-view .window-body{display:flex;align-items:center;gap:28px}
+.nap-spot{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:var(--muted)}
+.nappers{display:flex;gap:28px}
+.nappers span{display:flex;flex-direction:column;align-items:center;gap:6px}
+.nappers small{font-size:12px;line-height:16px;color:var(--muted);text-align:center;max-width:110px}
+
+.review{display:flex;align-items:center;gap:20px}
+.review ul{margin:0;padding:0;list-style:none;font-size:15px;line-height:28px;color:var(--muted)}
+.review li::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;margin-right:10px;vertical-align:-4px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--line);font-size:11px;font-weight:700;line-height:1;transition:background .2s,box-shadow .2s}
+.review li.done{color:var(--ink)}
+.review li.done::before{content:"✓";background:var(--strong);color:var(--on-strong);box-shadow:none}
+
+.dictation-view .window-body{display:flex;flex-direction:column;align-items:center;gap:22px;padding:26px 22px 22px}
+.field{align-self:stretch;min-height:72px;padding:12px 14px;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);font-size:15px;line-height:24px}
+.caret{display:inline-block;width:2px;height:16px;margin-left:2px;vertical-align:-3px;background:var(--ink);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.pill{display:inline-flex;align-items:center;gap:3px;height:32px;padding:0 14px;border-radius:16px;background:var(--strong)}
 .pill i{width:3px;height:6px;border-radius:2px;background:var(--on-strong);animation:wave .9s ease-in-out infinite alternate}
 @keyframes wave{to{height:18px}}
-.card.dictate p{color:var(--ink);min-height:21px}
-.caret{display:inline-block;width:2px;height:15px;margin-left:2px;vertical-align:-2px;background:var(--ink);animation:blink 1s steps(1) infinite}
-@keyframes blink{50%{opacity:0}}
-.card.meeting{display:flex;flex-direction:column;gap:6px;min-height:96px}
-.card.meeting b{color:var(--ink);font-weight:600}
-.card.meeting p{animation:appear .3s var(--ease-out) both}
-.card.meeting .sum{margin-top:4px;padding-top:8px;border-top:1px solid var(--grid);color:var(--ink)}
 
-/* c: name and look */
-.name{display:flex;gap:8px;margin-top:12px}
-.name input{flex:1;min-width:0;border:0;border-bottom:1px solid var(--muted);background:transparent;color:var(--ink);font:500 15px var(--font-sans);padding:4px 0;outline:0}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-.chips button{border:0;border-radius:8px;padding:4px 10px;background:var(--grid);color:var(--body);font:500 13px var(--font-sans);cursor:pointer}
-.chips button.on{background:var(--strong);color:var(--on-strong)}
-.swatches{display:flex;gap:8px;margin-top:10px}
-.swatches button{width:22px;height:22px;border-radius:50%;border:0;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
-.swatches button.on{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--ink)}
+.meeting-view .window-body{display:flex;flex-direction:column;gap:8px;min-height:200px;font-size:15px;line-height:23px;color:var(--body)}
+.meeting-view b{color:var(--ink);font-weight:600;margin-right:4px}
+.summary{margin-top:8px;padding-top:12px;border-top:1px solid var(--line);color:var(--ink);display:flex;flex-direction:column;gap:4px}
+.summary .muted{font-size:13px}
+.todo::before{content:"";display:inline-block;width:12px;height:12px;margin-right:8px;vertical-align:-1px;border-radius:3px;box-shadow:inset 0 0 0 1.5px var(--muted)}
 
-.foot{display:flex;justify-content:space-between;align-items:baseline;gap:24px;padding:48px 0 40px;font-size:13px;line-height:18px;color:var(--muted)}
+.foot{display:flex;justify-content:space-between;gap:24px;padding:40px 0;font-size:13px;color:var(--muted);border-top:1px solid var(--line)}
 .foot a{text-decoration:none}
-.foot a:hover{color:var(--ink)}
 
-@media (max-width:640px){
+@media (max-width:760px){
   .page{padding:0 20px}
-  .top{height:68px}
-  .line{margin-top:32px;font-size:18px;line-height:26px}
-  .foot{flex-direction:column;gap:8px}
+  .part,.part.right{justify-content:flex-start;padding:120px 0 24px}
+  .hero{padding:56px 0 24px}
+  .canvas-view .window-body{height:260px}
+  .nappers{gap:16px}
+  /* on a phone she sits above the window; her bubble ends where her feet are, so it never covers it */
+  .say{width:calc(100vw - 120px);transform:translateY(-100%);animation-name:say-up}
+  .say::before{top:auto;bottom:18px}
 }
 @media (prefers-reduced-motion: reduce){
-  .say,.card,.card.meeting p{animation:none}
-  .pill i,.caret{animation:none}
+  .say{animation:none}
+  .caret,.pill i{animation:none}
 }
