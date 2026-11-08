@@ -3,17 +3,17 @@
 // someone's work, the dictation pill sits at the bottom. Everything has the question-mark cursor; click
 // something and Meety hops over and tells you what it is.
 //
-// The canvas has two fixed layouts (wide and tall) in their own units, scaled to fit the window, so
-// every element keeps its place at any size.
+// The canvas has two layouts (wide and tall). Places are given in layout units and spread over the whole
+// screen, while the things themselves keep their small size: the full width, nothing zoomed in.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Avatar, Bot, MEETY, NAPPER, PIP, REX, type Look } from './Bot';
 import { DOWNLOAD_URL } from './config';
 
 type Id = 'shop' | 'api' | 'site' | 'nap' | 'rex' | 'ask' | 'question' | 'done' | 'input' | 'pill' | 'meety';
 
 const SAY: Record<Id | 'hello', string> = {
-  hello: 'Hi! I’m Meety. Click anything you see and I’ll tell you what it is.',
+  hello: 'Here they are at work. Click any bot or thing and I’ll tell you what it is.',
   shop: 'Every Claude Code session is a bot like this one. It works in its own folder, here editing a file, while you do something else.',
   api: 'This one split a big job. The little copies are its subagents, working in parallel.',
   site: 'Running the tests. When it’s done it comes over to you, you don’t have to keep checking.',
@@ -129,26 +129,67 @@ export function App() {
   const theme = useTheme();
   const view = useViewport();
   const layout = view.w / view.h < 0.9 ? TALL : WIDE;
-  const scale = Math.min(view.w / layout.w, view.h / layout.h, 1);
   const [picked, setPicked] = useState<Id | null>(null);
-  const at = layout.at;
+  // layout units to screen pixels: the places spread over the whole canvas screen
+  const W = view.w;
+  const H = view.h;
+  const px = <T extends { x: number; y: number }>(p: T): T => ({ ...p, x: (p.x / layout.w) * W, y: (p.y / layout.h) * H });
+  const at = Object.fromEntries(Object.entries(layout.at).map(([k, p]) => [k, px(p)])) as Layout['at'];
 
   // Meety stands beside what you clicked, her bubble on the free side (a strip on a phone)
-  const spot = layout.spot[picked ?? 'hello'];
+  const spot = px(layout.spot[picked ?? 'hello']);
   const meety = { x: spot.x, y: spot.y };
   const say = SAY[picked ?? 'hello'];
-  const clampLeft = (left: number) => Math.max(12, Math.min(layout.w - BUBBLE - 12, left));
+  const clampLeft = (left: number) => Math.max(12, Math.min(W - BUBBLE - 12, left));
   const bubble: React.CSSProperties | null = !spot.side ? null
     : spot.side === 'right' ? { left: spot.x + 32, top: spot.y - 52 }
     : spot.side === 'left' ? { left: spot.x - 32 - BUBBLE, top: spot.y - 52 }
     : spot.side === 'below' ? { left: clampLeft(spot.x - BUBBLE / 2), top: spot.y + 28 }
     : { left: clampLeft(spot.x - BUBBLE / 2), top: spot.y - 62, transform: 'translateY(-100%)' };
   // the strip goes where it doesn't cover what she explains
-  const stripTop = spot.y > layout.h / 2;
+  const stripTop = spot.y > H / 2;
+
+  // the first time the canvas comes into view, a ring pulses once round everything you can click
+  const world = useRef<HTMLElement | null>(null);
+  const [hinting, setHinting] = useState(false);
+  useEffect(() => {
+    const el = world.current;
+    if (!el) return;
+    const seen = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting || e.intersectionRatio < 0.6) return;
+      seen.disconnect();
+      setHinting(true);
+      window.setTimeout(() => setHinting(false), 3200);
+    }, { threshold: [0, 0.6] });
+    seen.observe(el);
+    return () => seen.disconnect();
+  }, []);
+  const order = ['shop', 'api', 'site', 'rex', 'nap', 'ask', 'question', 'done', 'input', 'pill'];
+
+  // on the welcome screen Meety hops in and offers to show you around
+  const guide = useRef<HTMLDivElement | null>(null);
+  const [guideW, setGuideW] = useState(0);
+  const measureGuide = useCallback((el: HTMLDivElement | null) => {
+    guide.current = el;
+    if (el) setGuideW(el.clientWidth);
+  }, []);
+  const [arrived, setArrived] = useState(false);
+  const [offer, setOffer] = useState<'ask' | 'later' | 'going'>('ask');
+  useEffect(() => {
+    const t = window.setTimeout(() => setArrived(true), 900);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => setGuideW(guide.current?.clientWidth ?? 0), [view.w]);
+  const showMe = () => {
+    setOffer('going');
+    setPicked(null);
+    world.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   // a thing you can click: the question-mark cursor, and Meety explains it
   const item = (id: Id, className: string, style: React.CSSProperties, children: React.ReactNode) => (
-    <button className={`item ${className} ${picked === id ? 'picked' : ''} ${['ask', 'question', 'done'].includes(id) ? 'queued' : ''}`} style={style} onClick={() => setPicked(id)} aria-label={LABEL[id]}>
+    <button className={`item ${className} ${picked === id ? 'picked' : ''} ${['ask', 'question', 'done'].includes(id) ? 'queued' : ''} ${hinting ? 'hint' : ''}`}
+      style={{ ...style, ['--k' as string]: order.indexOf(id) }} onClick={() => setPicked(id)} aria-label={LABEL[id]}>
       {children}
     </button>
   );
@@ -172,13 +213,32 @@ export function App() {
           <p>They work in their folders, come to you when they need you, and nap while you wait on someone else. Meety keeps your meetings, and you can talk to all of them.</p>
           <p className="facts">Free. For Macs with Apple chips and macOS 14 or later. Needs Claude Code.</p>
         </div>
+        {/* Meety hops in from the side and offers a tour */}
+        <div className="guide" ref={measureGuide}>
+          {guideW > 0 && (
+            <Bot name="Meety" look={MEETY} x={arrived ? guideW / 2 - 150 : guideW + 80} y={64} size={52} theme={theme} state="default" showName={false} speed={1.4} label="Meety" />
+          )}
+          {arrived && offer !== 'going' && (
+            <div className="say right offer" style={{ left: guideW / 2 - 112, top: 8 }} aria-live="polite">
+              {offer === 'ask' ? (
+                <>
+                  I’m Meety, I look after the bots in botlings. Want me to show you around?
+                  <span className="offer-actions">
+                    <button className="btn sm quiet" onClick={() => setOffer('later')}>Not now</button>
+                    <button className="btn sm" onClick={showMe}>Show me</button>
+                  </span>
+                </>
+              ) : 'Okay! The arrow below takes you there whenever you like.'}
+            </div>
+          )}
+        </div>
         <button className="next" onClick={() => document.querySelector('.world')?.scrollIntoView({ behavior: 'smooth' })} aria-label="See them at work">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 3.5v11M4.5 10 9 14.5 13.5 10" /></svg>
         </button>
       </section>
 
-      <section className="world" onClick={e => { if (e.target === e.currentTarget) setPicked(null); }}>
-        <div className="canvas" style={{ width: layout.w, height: layout.h, transform: `translate(-50%, -50%) scale(${scale})` }}>
+      <section className="world" ref={world} onClick={e => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('canvas')) setPicked(null); }}>
+        <div className="canvas" style={{ width: W, height: H }}>
           {/* folders, and the bots working in them */}
           <span className="place" style={{ left: at.shop.x - 52, top: at.shop.y - 32 }}><Folder name="shop" /></span>
           {bot('shop', LOOKS.shop, at.shop.x, at.shop.y, 'working', <span className="activity">Editing cart.ts</span>)}
