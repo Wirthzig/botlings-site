@@ -25,7 +25,7 @@ export const NAPPER: Look = { type: 'blob', color: '#7cc4ff' };
 /** An avatar on its own, without a place: for the wordmark and the cast list. */
 export function Avatar({ look, size, state = 'default', theme, interactive = false }: { look: Look; size: number; state?: BotAvatarState; theme: 'light' | 'dark'; interactive?: boolean }) {
   return (
-    <BotAvatar type={look.type} color={look.color} hat={look.hat ?? 'none'} glasses={look.glasses ?? 'none'} shading={look.shading ?? 'fabric'}
+    <BotAvatar type={look.type} color={look.color} hat={look.hat ?? 'none'} glasses={look.glasses ?? 'none'} shading="flat"
       face={look.face ?? 'mouth'} headphones={look.headphones ?? false} size={size} state={state} theme={theme}
       interactive={interactive} paused={reducedMotion()} aria-hidden />
   );

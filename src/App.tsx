@@ -1,4 +1,4 @@
-// The page is one botlings canvas, nothing to scroll. Bots are busy on it the way they are in the app:
+// The page: a welcome screen, and below it one botlings canvas as the last thing on the page. Bots are busy on it the way they are in the app:
 // some work in their folders (one with subagents), three wait above the input, one naps, Rex is checking
 // someone's work, the dictation pill sits at the bottom. Everything has the question-mark cursor; click
 // something and Meety hops over and tells you what it is.
@@ -56,7 +56,7 @@ interface Layout {
 }
 
 const WIDE: Layout = {
-  w: 1200, h: 700, inputWidth: 520,
+  w: 1200, h: 700, inputWidth: 420,
   at: {
     shop: { x: 180, y: 170 }, api: { x: 560, y: 140 }, site: { x: 960, y: 170 },
     nap: { x: 1050, y: 400 }, rex: { x: 170, y: 400 }, checked: { x: 260, y: 400 },
@@ -72,7 +72,7 @@ const WIDE: Layout = {
   },
 };
 const TALL: Layout = {
-  w: 400, h: 780, inputWidth: 360,
+  w: 400, h: 780, inputWidth: 320,
   at: {
     shop: { x: 90, y: 140 }, api: { x: 250, y: 120 }, site: { x: 110, y: 310 },
     nap: { x: 300, y: 320 }, rex: { x: 80, y: 470 }, checked: { x: 160, y: 470 },
@@ -89,10 +89,9 @@ const TALL: Layout = {
   },
 };
 /** The bubble's width on the wide canvas. */
-const BUBBLE = 260;
+const BUBBLE = 220;
 
-const HEADER = 64;
-const SIZE = 64;
+const SIZE = 40;
 
 function useTheme(): 'light' | 'dark' {
   const query = '(prefers-color-scheme: dark)';
@@ -130,7 +129,7 @@ export function App() {
   const theme = useTheme();
   const view = useViewport();
   const layout = view.w / view.h < 0.9 ? TALL : WIDE;
-  const scale = Math.min(view.w / layout.w, (view.h - HEADER) / layout.h);
+  const scale = Math.min(view.w / layout.w, view.h / layout.h, 1);
   const [picked, setPicked] = useState<Id | null>(null);
   const at = layout.at;
 
@@ -140,10 +139,10 @@ export function App() {
   const say = SAY[picked ?? 'hello'];
   const clampLeft = (left: number) => Math.max(12, Math.min(layout.w - BUBBLE - 12, left));
   const bubble: React.CSSProperties | null = !spot.side ? null
-    : spot.side === 'right' ? { left: spot.x + 46, top: spot.y - 70 }
-    : spot.side === 'left' ? { left: spot.x - 46 - BUBBLE, top: spot.y - 70 }
-    : spot.side === 'below' ? { left: clampLeft(spot.x - BUBBLE / 2), top: spot.y + 36 }
-    : { left: clampLeft(spot.x - BUBBLE / 2), top: spot.y - 84, transform: 'translateY(-100%)' };
+    : spot.side === 'right' ? { left: spot.x + 32, top: spot.y - 52 }
+    : spot.side === 'left' ? { left: spot.x - 32 - BUBBLE, top: spot.y - 52 }
+    : spot.side === 'below' ? { left: clampLeft(spot.x - BUBBLE / 2), top: spot.y + 28 }
+    : { left: clampLeft(spot.x - BUBBLE / 2), top: spot.y - 62, transform: 'translateY(-100%)' };
   // the strip goes where it doesn't cover what she explains
   const stripTop = spot.y > layout.h / 2;
 
@@ -162,60 +161,69 @@ export function App() {
     ));
 
   return (
-    <div className="page">
-      <header className="top">
-        <span className="mark">botlings</span>
-        <span className="line">Your Claude Code sessions, as little bots that come to you when they need you.</span>
-        <a className="btn" href={DOWNLOAD_URL}>Download for Mac</a>
-      </header>
+    <>
+      <section className="welcome">
+        <header className="top">
+          <span className="mark">botlings</span>
+          <a className="btn" href={DOWNLOAD_URL}>Download for Mac</a>
+        </header>
+        <div className="hello">
+          <h1>Your Claude Code sessions, as little bots.</h1>
+          <p>They work in their folders, come to you when they need you, and nap while you wait on someone else. Meety keeps your meetings, and you can talk to all of them.</p>
+          <p className="facts">Free. For Macs with Apple chips and macOS 14 or later. Needs Claude Code.</p>
+        </div>
+        <button className="next" onClick={() => document.querySelector('.world')?.scrollIntoView({ behavior: 'smooth' })} aria-label="See them at work">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 3.5v11M4.5 10 9 14.5 13.5 10" /></svg>
+        </button>
+      </section>
 
-      <main className="viewport" onClick={e => { if (e.target === e.currentTarget) setPicked(null); }}>
+      <section className="world" onClick={e => { if (e.target === e.currentTarget) setPicked(null); }}>
         <div className="canvas" style={{ width: layout.w, height: layout.h, transform: `translate(-50%, -50%) scale(${scale})` }}>
           {/* folders, and the bots working in them */}
-          <span className="place" style={{ left: at.shop.x - 70, top: at.shop.y - 46 }}><Folder name="shop" /></span>
+          <span className="place" style={{ left: at.shop.x - 52, top: at.shop.y - 32 }}><Folder name="shop" /></span>
           {bot('shop', LOOKS.shop, at.shop.x, at.shop.y, 'working', <span className="activity">Editing cart.ts</span>)}
 
-          <span className="place" style={{ left: at.api.x - 70, top: at.api.y - 46 }}><Folder name="api" /></span>
+          <span className="place" style={{ left: at.api.x - 52, top: at.api.y - 32 }}><Folder name="api" /></span>
           {bot('api', LOOKS.api, at.api.x, at.api.y, 'working', (
             <>
-              <span className="minis" aria-hidden>{[0, 1, 2].map(k => <Avatar key={k} look={LOOKS.api} size={24} state="working" theme={theme} />)}</span>
+              <span className="minis" aria-hidden>{[0, 1, 2].map(k => <Avatar key={k} look={LOOKS.api} size={16} state="working" theme={theme} />)}</span>
               <span className="activity">Searching the code</span>
             </>
           ))}
 
-          <span className="place" style={{ left: at.site.x - 70, top: at.site.y - 46 }}><Folder name="site" /></span>
+          <span className="place" style={{ left: at.site.x - 52, top: at.site.y - 32 }}><Folder name="site" /></span>
           {bot('site', LOOKS.site, at.site.x, at.site.y, 'working', <span className="activity">Running tests</span>)}
 
           {/* the nap spot */}
-          {item('nap', 'nap', { left: at.nap.x - 70, top: at.nap.y - 62 }, (
+          {item('nap', 'nap', { left: at.nap.x - 60, top: at.nap.y - 46 }, (
             <>
               <span className="moon" aria-hidden>
                 <svg width="26" height="22" viewBox="0 0 34 28" fill="none"><path d="M22.5 4.2A10.5 10.5 0 1 0 28.8 18 8.6 8.6 0 0 1 22.5 4.2z" fill="currentColor" opacity=".25" /></svg>
                 Nap
               </span>
-              <Avatar look={NAPPER} size={54} state="sleeping" theme={theme} />
+              <Avatar look={NAPPER} size={34} state="sleeping" theme={theme} />
               <span className="activity">Waiting on Sarah</span>
             </>
           ))}
 
           {/* Rex checking someone's work */}
-          {item('rex', 'rex', { left: at.rex.x - 34, top: at.rex.y - 64 }, (
+          {item('rex', 'rex', { left: at.rex.x - 21, top: at.rex.y - 42 }, (
             <>
-              <Avatar look={REX} size={58} theme={theme} state="working" />
+              <Avatar look={REX} size={38} theme={theme} state="working" />
               <span className="activity">Checking Lu’s work</span>
             </>
           ))}
-          <span className="checked" style={{ left: at.checked.x - 26, top: at.checked.y - 52 }}><Avatar look={LOOKS.checked} size={52} theme={theme} /></span>
+          <span className="checked" style={{ left: at.checked.x - 17, top: at.checked.y - 34 }}><Avatar look={LOOKS.checked} size={34} theme={theme} /></span>
 
           {/* the bots waiting for you, above the input */}
           {bot('ask', LOOKS.ask, at.ask.x, at.ask.y, 'default', <span className="badge">!</span>)}
           {bot('question', LOOKS.question, at.question.x, at.question.y, 'default', <span className="badge">?</span>)}
           {bot('done', LOOKS.done, at.done.x, at.done.y, 'default', <span className="badge">✓</span>)}
           {item('input', 'input', { left: at.input.x - layout.inputWidth / 2, top: at.input.y - 8, width: layout.inputWidth }, <span>What should a new botling work on?</span>)}
-          {item('pill', 'pill', { left: at.pill.x - 48, top: at.pill.y - 16 }, Array.from({ length: 11 }, (_, k) => <i key={k} style={{ animationDelay: `${(k % 6) * 80}ms` }} />))}
+          {item('pill', 'pill', { left: at.pill.x - 34, top: at.pill.y - 11 }, Array.from({ length: 11 }, (_, k) => <i key={k} style={{ animationDelay: `${(k % 6) * 80}ms` }} />))}
 
           {/* Meety: at home until you click something, then she runs over */}
-          <Bot name="Meety" look={MEETY} x={meety.x} y={meety.y} size={72} theme={theme} state="default" showName={false} speed={1.8}
+          <Bot name="Meety" look={MEETY} x={meety.x} y={meety.y} size={46} theme={theme} state="default" showName={false} speed={1.8}
             onSelect={() => setPicked('meety')} label="Meety" />
           {bubble && (
             <div className={`say ${spot.side}`} key={picked ?? 'hello'} aria-live="polite" style={{ ...bubble, width: BUBBLE }}>
@@ -230,11 +238,11 @@ export function App() {
             {picked === 'meety' && <a className="btn sm" href={DOWNLOAD_URL}>Download for Mac</a>}
           </div>
         )}
-      </main>
-      <footer className="foot">
-        <span>Free. For Macs with Apple chips and macOS 14 or later. Needs Claude Code. Not affiliated with Anthropic.</span>
-        <a href={`${import.meta.env.BASE_URL}notices.txt`}>Notices</a>
-      </footer>
-    </div>
+        <footer className="foot">
+          <span>Not affiliated with Anthropic.</span>
+          <span><a href={DOWNLOAD_URL}>Download for Mac</a><a href={`${import.meta.env.BASE_URL}notices.txt`}>Notices</a></span>
+        </footer>
+      </section>
+    </>
   );
 }
