@@ -68,7 +68,7 @@ const WIDE: Layout = {
     shop: { x: 270, y: 175, side: 'below' }, api: { x: 720, y: 150, side: 'below' }, site: { x: 1050, y: 175, side: 'below' },
     rex: { x: 360, y: 400, side: 'right' }, nap: { x: 930, y: 400, side: 'left' },
     ask: { x: 790, y: 522, side: 'right' }, question: { x: 790, y: 522, side: 'right' }, done: { x: 790, y: 522, side: 'right' },
-    input: { x: 920, y: 600, side: 'below' }, pill: { x: 720, y: 672, side: 'right' },
+    input: { x: 980, y: 640, side: 'above' }, pill: { x: 720, y: 672, side: 'right' },
   },
 };
 const TALL: Layout = {
