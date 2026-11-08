@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Bot, MEETY } from './Bot';
+import { reducedMotion } from './hop';
 import { DOWNLOAD_URL } from './config';
 import { AskView, CanvasView, DictationView, MeetingView, NapView, ReviewView } from './Views';
 
@@ -81,6 +82,23 @@ export function App() {
   }, []);
   useLayoutEffect(() => remeasure(n => n + 1), []);
 
+  // the arrow button and the arrow keys: one whole part further (or back)
+  const go = useCallback((delta: number) => {
+    const parts = document.querySelectorAll<HTMLElement>('[data-part]');
+    const next = parts[Math.max(0, Math.min(parts.length - 1, active + delta))];
+    next?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  }, [active]);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); go(1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [go]);
+
   // where she sits: beside the active window, on its free side (above it on a phone)
   const small = window.innerWidth < 760;
   const size = small ? 60 : 76;
@@ -91,9 +109,9 @@ export function App() {
   if (box && anchor) {
     const top = anchor.top - box.top;
     if (small) at = { x: 16 + size / 2, y: top - 12 };
-    else if (PARTS[active].side === 'left') at = { x: anchor.right - box.left + 72, y: top + 150 };
+    else if (PARTS[active].side === 'left') at = { x: anchor.right - box.left + 80, y: top + anchor.height / 2 + size / 2 };
     else {
-      at = { x: anchor.left - box.left - 72, y: top + 150 };
+      at = { x: anchor.left - box.left - 80, y: top + anchor.height / 2 + size / 2 };
       bubbleSide = 'left';
     }
   }
@@ -132,6 +150,12 @@ export function App() {
           {part.say}
         </div>
       </main>
+
+      {active < PARTS.length - 1 && (
+        <button className="next" onClick={() => go(1)} aria-label="Next">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 3.5v11M4.5 10 9 14.5 13.5 10" /></svg>
+        </button>
+      )}
 
       <footer className="foot">
         <span>Not affiliated with Anthropic.</span>

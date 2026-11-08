@@ -41,20 +41,20 @@ a{color:inherit}
 
 /* the parts: plain sections down the page, a window on one side, Meety on the other */
 main{position:relative}
-.part{display:flex;padding:96px 0}
+.part{display:flex;align-items:center;min-height:100vh;padding:48px 0;scroll-margin-top:0}
 .part.right{justify-content:flex-end}
-.part .anchor{width:min(560px,100%)}
-.hero{padding:88px 0 40px}
-.hero-anchor{width:auto;max-width:560px}
-h1{margin:0;font-size:clamp(32px,4.4vw,52px);line-height:1.06;font-weight:600;letter-spacing:-.032em}
-.end{padding:120px 0 80px}
+.part .anchor{width:min(660px,100%)}
+.hero{min-height:calc(100vh - 80px);padding:0 0 80px}
+.part .hero-anchor{width:auto;max-width:640px}
+h1{margin:0;font-size:clamp(36px,5.4vw,68px);line-height:1.06;font-weight:600;letter-spacing:-.032em}
+.end{padding:48px 0}
 .end-anchor{display:flex;flex-direction:column;align-items:flex-start;gap:16px;width:auto}
 .end-anchor p{font-size:15px}
 
 /* Meety and what she says */
 .bot{position:absolute;padding:0;border:0;background:none;transform-origin:50% 100%;cursor:default;z-index:2}
 .bot .name{display:none}
-.say{position:absolute;z-index:2;width:min(300px,calc(100vw - 120px));padding:12px 15px;background:var(--raised);border-radius:14px;box-shadow:var(--shadow-float);font-size:15px;line-height:23px;animation:say .3s var(--ease-out) .55s both}
+.say{position:absolute;z-index:2;width:min(320px,calc(100vw - 120px));padding:14px 17px;background:var(--raised);border-radius:14px;box-shadow:var(--shadow-float);font-size:15px;line-height:23px;animation:say .3s var(--ease-out) .55s both}
 .say::before{content:"";position:absolute;top:24px;width:10px;height:10px;background:var(--raised);transform:rotate(45deg)}
 .say.right::before{left:-5px}
 .say.left::before{right:-5px}
@@ -66,19 +66,20 @@ h1{margin:0;font-size:clamp(32px,4.4vw,52px);line-height:1.06;font-weight:600;le
 .window-bar{display:flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
 .window-bar i{width:9px;height:9px;border-radius:50%;background:var(--line)}
 .window-bar span{margin-left:8px}
-.window-body{position:relative;padding:22px}
+.window-body{position:relative;padding:28px}
 .folder{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:var(--muted)}
 .badge{position:absolute;top:-2px;right:-6px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--strong);color:var(--on-strong);font-size:12px;font-weight:700;box-shadow:0 0 0 2px var(--raised)}
 
-.canvas-view .window-body{height:300px}
+.canvas-view .window-body{height:400px}
 .grid-bg{position:absolute;inset:0;background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);background-size:20px 20px}
 .spot{position:absolute;display:flex;align-items:center;gap:10px}
-.waiting{position:absolute;left:50%;bottom:76px;transform:translateX(-50%)}
-.input{position:absolute;left:22px;right:22px;bottom:18px;height:44px;display:flex;align-items:center;padding:0 16px;border-radius:12px;background:var(--raised);box-shadow:var(--shadow-float);color:var(--muted);font-size:14px}
+.waiting{position:absolute;left:50%;bottom:92px;transform:translateX(-50%)}
+.input{position:absolute;left:28px;right:28px;bottom:24px;height:52px;display:flex;align-items:center;padding:0 18px;border-radius:14px;background:var(--raised);box-shadow:var(--shadow-float);color:var(--muted);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .ask-row{display:flex;align-items:flex-end;gap:14px}
 .ask-card{flex:1;padding:14px 16px;border-radius:14px;background:var(--panel)}
-.ask-card .mono{font:14px/22px var(--font-mono);margin:4px 0 2px}
+.ask-card{padding:18px 20px}
+.ask-card .mono{font:16px/24px var(--font-mono);margin:4px 0 2px}
 .ask-card .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
 .ask-card .btn{height:30px;padding:0 12px;font-size:13px;border-radius:8px}
 
@@ -89,33 +90,37 @@ h1{margin:0;font-size:clamp(32px,4.4vw,52px);line-height:1.06;font-weight:600;le
 .nappers small{font-size:12px;line-height:16px;color:var(--muted);text-align:center;max-width:110px}
 
 .review{display:flex;align-items:center;gap:20px}
-.review ul{margin:0;padding:0;list-style:none;font-size:15px;line-height:28px;color:var(--muted)}
-.review li::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;margin-right:10px;vertical-align:-4px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--line);font-size:11px;font-weight:700;line-height:1;transition:background .2s,box-shadow .2s}
+.review ul{margin:0;padding:0;list-style:none;font-size:17px;line-height:34px;color:var(--muted)}
+.review li::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;margin-right:10px;vertical-align:-2px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--line);font-size:11px;font-weight:700;line-height:1;transition:background .2s,box-shadow .2s}
 .review li.done{color:var(--ink)}
 .review li.done::before{content:"✓";background:var(--strong);color:var(--on-strong);box-shadow:none}
 
 .dictation-view .window-body{display:flex;flex-direction:column;align-items:center;gap:22px;padding:26px 22px 22px}
-.field{align-self:stretch;min-height:72px;padding:12px 14px;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);font-size:15px;line-height:24px}
+.field{align-self:stretch;min-height:96px;padding:14px 16px;border-radius:12px;box-shadow:inset 0 0 0 1px var(--line);font-size:17px;line-height:27px}
 .caret{display:inline-block;width:2px;height:16px;margin-left:2px;vertical-align:-3px;background:var(--ink);animation:blink 1s steps(1) infinite}
 @keyframes blink{50%{opacity:0}}
 .pill{display:inline-flex;align-items:center;gap:3px;height:32px;padding:0 14px;border-radius:16px;background:var(--strong)}
 .pill i{width:3px;height:6px;border-radius:2px;background:var(--on-strong);animation:wave .9s ease-in-out infinite alternate}
 @keyframes wave{to{height:18px}}
 
-.meeting-view .window-body{display:flex;flex-direction:column;gap:8px;min-height:200px;font-size:15px;line-height:23px;color:var(--body)}
+.meeting-view .window-body{display:flex;flex-direction:column;gap:10px;min-height:260px;font-size:17px;line-height:26px;color:var(--body)}
 .meeting-view b{color:var(--ink);font-weight:600;margin-right:4px}
 .summary{margin-top:8px;padding-top:12px;border-top:1px solid var(--line);color:var(--ink);display:flex;flex-direction:column;gap:4px}
 .summary .muted{font-size:13px}
 .todo::before{content:"";display:inline-block;width:12px;height:12px;margin-right:8px;vertical-align:-1px;border-radius:3px;box-shadow:inset 0 0 0 1.5px var(--muted)}
 
+/* one part further: the round arrow at the bottom, also the arrow keys */
+.next{position:fixed;left:50%;bottom:24px;z-index:3;width:44px;height:44px;margin-left:-22px;display:grid;place-items:center;border:0;border-radius:50%;background:var(--raised);color:var(--ink);box-shadow:var(--shadow-float);cursor:pointer;transition:transform .15s var(--ease-out)}
+.next:active{transform:scale(.94)}
 .foot{display:flex;justify-content:space-between;gap:24px;padding:40px 0;font-size:13px;color:var(--muted);border-top:1px solid var(--line)}
 .foot a{text-decoration:none}
 
 @media (max-width:760px){
   .page{padding:0 20px}
-  .part,.part.right{justify-content:flex-start;padding:120px 0 24px}
-  .hero{padding:56px 0 24px}
-  .canvas-view .window-body{height:260px}
+  .part,.part.right{justify-content:flex-start;padding:140px 0 80px}
+  .hero{padding:0 0 80px}
+  .canvas-view .window-body{height:300px}
+  .window-body{padding:20px}
   .nappers{gap:16px}
   /* on a phone she sits above the window; her bubble ends where her feet are, so it never covers it */
   .say{width:calc(100vw - 120px);transform:translateY(-100%);animation-name:say-up}

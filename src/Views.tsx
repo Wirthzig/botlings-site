@@ -45,9 +45,9 @@ export function CanvasView({ theme }: { theme: 'light' | 'dark' }) {
   return (
     <Window title="botlings" className="canvas-view">
       <div className="grid-bg" />
-      <div className="spot" style={{ left: '8%', top: '12%' }}><Folder name="shop" /><Avatar look={MO} size={44} state="working" theme={theme} /></div>
-      <div className="spot" style={{ right: '10%', top: '16%' }}><Folder name="api" /><Avatar look={OLI} size={44} state="working" theme={theme} /></div>
-      <div className="waiting"><Avatar look={PIP} size={52} theme={theme} /><span className="badge">?</span></div>
+      <div className="spot" style={{ left: '8%', top: '12%' }}><Folder name="shop" /><Avatar look={MO} size={56} state="working" theme={theme} /></div>
+      <div className="spot" style={{ right: '10%', top: '16%' }}><Folder name="api" /><Avatar look={OLI} size={56} state="working" theme={theme} /></div>
+      <div className="waiting"><Avatar look={PIP} size={64} theme={theme} /><span className="badge">?</span></div>
       <div className="input">What should a new botling work on?</div>
     </Window>
   );
@@ -59,7 +59,7 @@ export function AskView({ theme }: { theme: 'light' | 'dark' }) {
   return (
     <Window title="botlings" className="ask-view">
       <div className="ask-row">
-        <Avatar look={PIP} size={52} state={allowed ? 'working' : 'default'} theme={theme} />
+        <Avatar look={PIP} size={64} state={allowed ? 'working' : 'default'} theme={theme} />
         <div className="ask-card">
           <p className="muted">Pip wants to run</p>
           <p className="mono">npm test</p>
@@ -84,8 +84,8 @@ export function NapView({ theme }: { theme: 'light' | 'dark' }) {
         <span>Nap</span>
       </div>
       <div className="nappers">
-        <span><Avatar look={NAPPER} size={48} state="sleeping" theme={theme} /><small>Waiting on Sarah’s reply</small></span>
-        <span><Avatar look={OLI} size={48} state="sleeping" theme={theme} /><small>Waiting on the client</small></span>
+        <span><Avatar look={NAPPER} size={60} state="sleeping" theme={theme} /><small>Waiting on Sarah’s reply</small></span>
+        <span><Avatar look={OLI} size={60} state="sleeping" theme={theme} /><small>Waiting on the client</small></span>
       </div>
     </Window>
   );
@@ -98,7 +98,7 @@ export function ReviewView({ theme, live }: { theme: 'light' | 'dark'; live: boo
   return (
     <Window title="botlings" className="review-view">
       <div className="review">
-        <Avatar look={REX} size={56} theme={theme} state={live && shown < checks.length ? 'working' : 'default'} />
+        <Avatar look={REX} size={68} theme={theme} state={live && shown < checks.length ? 'working' : 'default'} />
         <ul>{checks.map((c, k) => <li key={c} className={k < shown ? 'done' : ''}>{c}</li>)}</ul>
       </div>
     </Window>
