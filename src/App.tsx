@@ -359,12 +359,7 @@ export function App() {
       <section className="welcome">
         <header className="top">
           <span className="mark">botlings</span>
-          {download()}
-        </header>
-        <div className="hello">
-          <button className="news" onClick={() => setSheet('new')}>New in 0.3.3. Meety prepares your meetings.</button>
-          <h1>Your Claude Code sessions, as little bots.</h1>
-          {/* the small print behind an i: shows on hover, and on a tap for touch screens */}
+          {/* the small print behind an i beside the download: shows on hover, and on a tap for touch screens */}
           <span className={`info ${infoOpen ? 'open' : ''}`}>
             <button className="info-i" aria-label="What you need" aria-expanded={infoOpen} onClick={() => setInfoOpen(o => !o)} onBlur={() => setInfoOpen(false)}>i</button>
             <span className="info-card" role="tooltip">
@@ -372,6 +367,11 @@ export function App() {
               <span>No account. No tracking. Dictation stays on your Mac.</span>
             </span>
           </span>
+          {download()}
+        </header>
+        <div className="hello">
+          <button className="news" onClick={() => setSheet('new')}>New in 0.3.3. Meety prepares your meetings.</button>
+          <h1>Your Claude Code sessions, as little botlings<img className="h1-bot" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" /></h1>
         </div>
         <div className="guide" ref={measureGuide}>
           {guideW > 0 && (
