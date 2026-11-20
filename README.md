@@ -6,9 +6,9 @@ open are in the app repo's HANDOFF.md.
 
 ```bash
 npm install
-npm run dev       # http://localhost:5173/botlings/
+npm run dev       # http://localhost:5173/botlings-site/
 npm run build     # notices, typecheck, static site in dist/
-npx vite preview  # http://localhost:4173/botlings/
+npx vite preview  # http://localhost:4173/botlings-site/
 ```
 
 - Design: the Norn tokens of the app, Inter, flat bots, no colour except the bots.

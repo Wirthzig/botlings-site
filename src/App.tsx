@@ -361,9 +361,8 @@ export function App() {
           {download()}
         </header>
         <div className="hello">
-          <button className="news" onClick={() => setSheet('new')}>New in 0.3. Rex checks your bots’ work.</button>
+          <button className="news" onClick={() => setSheet('new')}>New in 0.3.3. Meety prepares your meetings.</button>
           <h1>Your Claude Code sessions, as little bots.</h1>
-          <p>They work in their folders, come to you when they need you, and nap while you wait on someone else. Meety keeps your meetings, and you can talk to all of them.</p>
           <p className="facts">Free. For Macs with Apple chips and macOS 14 or later. Needs Claude Code.</p>
           <p className="trust">No account. No tracking. Dictation stays on your Mac.</p>
         </div>
@@ -466,11 +465,12 @@ export function App() {
         <footer className="foot">
           <span>Not affiliated with Anthropic.</span>
           <nav>
+            <button onClick={() => setSheet('features')}>Features</button>
             <button onClick={() => setSheet('faq')}>Questions</button>
             <button onClick={() => setSheet('new')}>What’s new</button>
             <button onClick={() => setSheet('privacy')}>Privacy</button>
             <button onClick={() => setSheet('imprint')}>Imprint</button>
-            <a href={`${import.meta.env.BASE_URL}notices.txt`}>Notices</a>
+            <button onClick={() => setSheet('notices')}>Notices</button>
           </nav>
         </footer>
       </section>
