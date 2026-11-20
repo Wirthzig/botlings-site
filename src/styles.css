@@ -161,6 +161,7 @@ a{color:inherit}
 .faq dt{color:var(--ink);font-weight:600}
 .faq dd{margin:4px 0 0}
 .prose p{margin:0 0 12px}
+.reveal{padding:0;border:0;background:none;color:var(--ink);font:inherit;text-decoration:underline;cursor:pointer}
 .draft{font-size:13px;color:var(--muted)}
 .changes section{padding:12px 0;border-top:1px solid var(--line)}
 .changes section:first-child{border-top:0}

@@ -127,6 +127,18 @@ export function Sheet({ id, onClose }: { id: SheetId; onClose: () => void }) {
   );
 }
 
+/**
+ * The contact address, put together only when someone asks for it: it never stands in the page or the
+ * code in one piece, so address collectors don't find it.
+ */
+function Email() {
+  const [shown, setShown] = useState(false);
+  if (!shown) return <button className="reveal" onClick={() => setShown(true)}>Show email</button>;
+  // decoded at runtime: the minifier folds any plain way of joining it back into one string
+  const address = atob('bm9ybi5vcHRpbWl6YXRpb25AZ21haWwuY29t');
+  return <a href={`mailto:${address}`}>{address}</a>;
+}
+
 /** Licence texts come wrapped at 80 characters: join the lines of each paragraph so they wrap to the sheet. */
 const reflow = (t: string) => t.trim().split(/\n\s*\n/).map(p => p.replace(/\s*\n\s*/g, ' ')).join('\n\n');
 
@@ -177,7 +189,7 @@ const BODY: Record<SheetId, React.ReactNode> = {
     <div className="prose">
       <p>This website sets no cookies and uses no analytics or tracking. It is hosted on GitHub Pages. GitHub processes the technical data needed to deliver it, such as your IP address, under its own privacy statement.</p>
       <p>The botlings app has no account and no analytics of its own. Your bots talk to Anthropic through your own Claude Code, under your agreement with Anthropic. Dictation and meeting transcription happen on your Mac.</p>
-      <p>Responsible for this website: Alexander Wirths, Deutschherrnufer 42, 60594 Frankfurt am Main, Germany, <a href="mailto:norn.optimization@gmail.com">norn.optimization@gmail.com</a>.</p>
+      <p>Responsible for this website: Alexander Wirths, Deutschherrnufer 42, 60594 Frankfurt am Main, Germany. Email: <Email /></p>
     </div>
   ),
   new: (
@@ -195,7 +207,7 @@ const BODY: Record<SheetId, React.ReactNode> = {
       <h3>Information according to § 5 DDG</h3>
       <p>Alexander Wirths<br />Deutschherrnufer 42<br />60594 Frankfurt am Main<br />Germany</p>
       <h3>Contact</h3>
-      <p>Email: <a href="mailto:norn.optimization@gmail.com">norn.optimization@gmail.com</a></p>
+      <p>Email: <Email /></p>
       <h3>Responsible for content according to § 18 (2) MStV</h3>
       <p>Alexander Wirths, Deutschherrnufer 42, 60594 Frankfurt am Main, Germany</p>
       <h3>Consumer dispute resolution</h3>
