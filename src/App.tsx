@@ -137,6 +137,7 @@ export function App() {
   const [typed, setTyped] = useState('');
   const [ticks, setTicks] = useState<Record<string, boolean>>({});
   const [sheet, setSheet] = useState<SheetId | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
   const lastClick = useRef(0);
   const pick = (id: string | null) => {
     lastClick.current = Date.now();
@@ -363,8 +364,14 @@ export function App() {
         <div className="hello">
           <button className="news" onClick={() => setSheet('new')}>New in 0.3.3. Meety prepares your meetings.</button>
           <h1>Your Claude Code sessions, as little bots.</h1>
-          <p className="facts">Free. For Macs with Apple chips and macOS 14 or later. Needs Claude Code.</p>
-          <p className="trust">No account. No tracking. Dictation stays on your Mac.</p>
+          {/* the small print behind an i: shows on hover, and on a tap for touch screens */}
+          <span className={`info ${infoOpen ? 'open' : ''}`}>
+            <button className="info-i" aria-label="What you need" aria-expanded={infoOpen} onClick={() => setInfoOpen(o => !o)} onBlur={() => setInfoOpen(false)}>i</button>
+            <span className="info-card" role="tooltip">
+              <span>Free. For Macs with Apple chips and macOS 14 or later. Needs Claude Code.</span>
+              <span>No account. No tracking. Dictation stays on your Mac.</span>
+            </span>
+          </span>
         </div>
         <div className="guide" ref={measureGuide}>
           {guideW > 0 && (
